@@ -6,7 +6,7 @@
 // case that tells the two methods apart.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEFAULT_HUMANS, MAX_ENTRANTS, checkTable, combinations, defaultTable, ranking, recordTable, schedule, tableCount, tableSize } from './tournament.js';
+import { DEFAULT_HUMANS, MAX_ENTRANTS, MAX_TABLES, checkTable, combinations, defaultTable, ranking, recordTable, schedule, tableCount, tableSize } from './tournament.js';
 
 /** Everybody at every table of every round, as "a+b" strings, for counting how often a combination was played. */
 const every = (rounds) => rounds.flat().map((table) => [...table].sort((a, b) => a - b).join('+'));
@@ -99,6 +99,31 @@ test('in threes or more, every combination is played once and no round seats any
     for (const round of rounds) {
       const sitting = round.flat();
       assert.equal(sitting.length, new Set(sitting).size, 'nobody is at two tables of one round');
+    }
+  }
+});
+
+test('nobody waits round after round while the others play', () => {
+  // The promise every tournament makes: everybody plays as many games as everybody else, so everybody sits out as
+  // many rounds as everybody else, and those rounds are spread about rather than saved up for the people whose
+  // combinations ran out first.  Taking the combinations in their own order broke the last of those three badly —
+  // seventeen rounds running, with nine people in threes — which is why the rounds go to whoever has waited longest.
+  for (let n = 2; n <= MAX_ENTRANTS; n++) {
+    for (let perTable = 2; perTable <= Math.min(n, 8); perTable++) {
+      if (tableCount(n, perTable) > MAX_TABLES) continue;
+      const rounds = schedule(people(n), perTable);
+      const playing = rounds.map((round) => new Set(round.flat()));
+      const where = `${n} people, ${perTable} to a table`;
+      const played = people(n).map((id) => playing.filter((round) => round.has(id)).length);
+      assert.equal(new Set(played).size, 1, `everybody plays the same number of games: ${where}`);
+      assert.equal(new Set(played.map((count) => rounds.length - count)).size, 1, `everybody sits out as often: ${where}`);
+      for (const id of people(n)) {
+        let running = 0;
+        for (const round of playing) {
+          running = round.has(id) ? 0 : running + 1;
+          assert.ok(running <= 2, `nobody sits out more than two rounds running: ${where}`);
+        }
+      }
     }
   }
 });

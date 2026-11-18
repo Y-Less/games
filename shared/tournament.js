@@ -116,10 +116,24 @@ function pairRounds(people) {
   return rounds;
 }
 
+/** How long the people of a table have been kept waiting between them, which is what gives a table its turn. */
+const waited = (table, missed) => table.reduce((total, id) => total + (missed.get(id) ?? 0), 0);
+
 /**
- * The rounds of a tournament played in threes or more: every combination, taken in order, and packed into rounds of
- * tables that share nobody.  There is no chess-club method for this, so it is simply the first combination that fits,
- * again and again — which may use a round more than the fewest possible, and never plays a combination twice.
+ * The rounds of a tournament played in threes or more: every combination, packed into rounds of tables that share
+ * nobody.  There is no chess-club method for this, so each round takes whichever tables fit, and never plays a
+ * combination twice.
+ *
+ * Which ones fit is decided by who has been sitting out.  Taking them in plain combination order is simpler, and it
+ * is what this did first, but it is unkind: the combinations are lexicographic, so the people who come first in the
+ * list run out of partners while the rest still have plenty, and then sit out round after round at the end — with
+ * nine people in threes, somebody sat out seventeen rounds running.  Giving the round to the tables whose people
+ * have waited longest spends everybody's combinations at about the same rate instead: the same nine people now sit
+ * out two rounds running at the very worst, and the evening is seven rounds shorter into the bargain.
+ *
+ * Everybody plays the same number of games either way — each person is in the same number of combinations — so this
+ * is about when they play, not how often.  The sort is stable, so tables whose people have waited equally keep the
+ * order the combinations came in, and the same people always draw the same evening.
  *
  * @param {Array<number|string>} people  the ids
  * @param {number} perTable  how many people are at a table
@@ -127,21 +141,21 @@ function pairRounds(people) {
  * Side effects: none.
  */
 function packedRounds(people, perTable) {
-  const left = combinations(people, perTable);
+  let left = combinations(people, perTable);
+  const missed = new Map(people.map((id) => [id, 0]));
   const rounds = [];
   while (left.length) {
     const busy = new Set();
-    const tables = [];
-    for (let i = 0; i < left.length; ) {
-      if (left[i].some((id) => busy.has(id))) {
-        i++;
-        continue;
-      }
-      for (const id of left[i]) busy.add(id);
-      tables.push(left[i]);
-      left.splice(i, 1);
+    const taken = new Set();
+    for (const table of [...left].sort((one, other) => waited(other, missed) - waited(one, missed))) {
+      if (table.some((id) => busy.has(id))) continue;
+      for (const id of table) busy.add(id);
+      taken.add(table);
     }
-    rounds.push(tables);
+    for (const id of people) if (!busy.has(id)) missed.set(id, (missed.get(id) ?? 0) + 1);
+    // The round itself is kept in combination order, so that a round reads the way the list of them does.
+    rounds.push(left.filter((table) => taken.has(table)));
+    left = left.filter((table) => !taken.has(table));
   }
   return rounds;
 }
