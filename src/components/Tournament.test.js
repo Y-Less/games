@@ -129,6 +129,50 @@ describe('a tournament being played', () => {
     expect(w.find('.standings').text()).toContain('Ann');
   });
 
+  /** A round that has been drawn up but is waiting for everybody to say they are ready for it. */
+  const between = (extra = {}) =>
+    running({
+      tables: [],
+      yourTable: null,
+      round: 2,
+      waiting: true,
+      youReady: false,
+      readyNow: 1,
+      readyOf: 3,
+      notReady: [{ id: 1, name: 'Ann' }, { id: 2, name: 'Bo' }],
+      ...extra,
+    });
+
+  it('asks you to say you are ready for the next round, and says who else is still to', () => {
+    const w = mount(TournamentBoard, { props: { tournament: between() } });
+    expect(w.text()).toContain('starts when everybody says they are ready');
+    expect(w.text()).toContain('1 of 3 ready');
+    expect(w.text()).toContain('Bo');
+    w.findAll('button').find((b) => b.text() === 'I am ready').trigger('click');
+    expect(w.emitted('ready')).toEqual([[true]]);
+  });
+
+  it('lets somebody who said it too soon take it back', () => {
+    const w = mount(TournamentBoard, { props: { tournament: between({ youReady: true }) } });
+    expect(w.findAll('button').some((b) => b.text() === 'I am ready')).toBe(false);
+    w.findAll('button').find((b) => b.text() === 'Not just yet').trigger('click');
+    expect(w.emitted('ready')).toEqual([[false]]);
+  });
+
+  it('lets the host put out somebody who is never going to say they are ready', () => {
+    const w = mount(TournamentBoard, { props: { tournament: between(), isHost: true } });
+    // Ann is the reader and Bo is the one in the way; both are listed, and only the other one can be put out.
+    const rows = w.findAll('.waiting-for li');
+    expect(rows.length).toBe(2);
+    rows[1].find('button').trigger('click');
+    expect(w.emitted('kick')).toEqual([['s1']]);
+  });
+
+  it('offers nobody the removal of anybody when it is not the host looking', () => {
+    const w = mount(TournamentBoard, { props: { tournament: between() } });
+    expect(w.findAll('.waiting-for button').length).toBe(0);
+  });
+
   it('says plainly when a game nobody finished was given up on', () => {
     const w = mount(TournamentBoard, { props: { tournament: running({ tables: [{ code: 'd-e-f', done: true, failed: 'gone', yours: false, players: [{ id: 3, name: 'Cal' }, { id: 4, name: 'Di' }] }] }) } });
     expect(w.text()).toContain('Nobody finished it');
@@ -150,6 +194,21 @@ describe('the bar above a tournament game', () => {
     expect(w.find('button').text()).toBe('Your next game is ready');
     w.find('button').trigger('click');
     expect(w.emitted('go')).toEqual([['g-h-i']]);
+  });
+
+  it('takes "I am ready" where the player is sitting, at the game they have just finished', () => {
+    // The point of the gate is that nobody is made to go anywhere: the next round is waiting on this person, and
+    // they are looking at the score sheet of the game they have just played.
+    const w = mount(TournamentBar, { props: { tournament: block({ phase: 'tournament', here: 'a-b-c', round: 2, yourTable: null, waiting: true, youReady: false }) } });
+    const ready = w.findAll('button').find((b) => b.text() === 'I am ready');
+    ready.trigger('click');
+    expect(w.emitted('ready')).toEqual([[true]]);
+    expect(w.findAll('button').some((b) => b.text() === 'Back to the tournament')).toBe(true);
+  });
+
+  it('asks nothing of somebody who has already said they are ready', () => {
+    const w = mount(TournamentBar, { props: { tournament: block({ phase: 'tournament', here: 'a-b-c', round: 2, yourTable: null, waiting: true, youReady: true }) } });
+    expect(w.findAll('button').some((b) => b.text() === 'I am ready')).toBe(false);
   });
 
   it('offers nothing when the tournament itself has been forgotten', () => {

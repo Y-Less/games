@@ -7,8 +7,9 @@
 // It never moves anybody by itself.  Being pulled out of a game you were still reading the end of would be worse
 // than having to click, which is the same rule TourBand.vue keeps.
 //
-// Props: tournament (the `tournament` block of the state), busy (Boolean).
-// Emits: go(code) — walk into that game.  The parent sends it as a join.
+// Props: tournament (the `tournament` block of the state), busy (Boolean), isHost (Boolean).
+// Emits: go(code) — walk into that game; ready(on) — say you are ready for the next round, or take it back;
+// kick(slot) — the host puts somebody out.  The parent sends them.
 // Side effects: none itself; only emits.
 import { computed } from 'vue';
 import { useGameText } from '../useGameText.js';
@@ -16,9 +17,17 @@ import { useGameText } from '../useGameText.js';
 const props = defineProps({
   tournament: { type: Object, required: true },
   busy: { type: Boolean, default: false },
+  isHost: { type: Boolean, default: false },
 });
 const { t } = useGameText();
-const emit = defineEmits(['go']);
+const emit = defineEmits(['go', 'ready', 'kick']);
+
+/** Between rounds: the next one opens once everybody still here has said they are ready for it. */
+const waiting = computed(() => Boolean(props.tournament.waiting));
+/** Everybody who has not said so yet, as the ones still here are named. */
+const notReady = computed(() => props.tournament.notReady ?? []);
+/** The slot of somebody still being waited for, so the host can put them out; they may not be in the room at all. */
+const slotOf = (id) => props.tournament.entrants?.find((person) => person.id === id)?.slot ?? null;
 
 const over = computed(() => props.tournament.phase === 'finished');
 /** This round's games, or the round just played once the tournament is over. */
@@ -39,6 +48,20 @@ const sittingOut = computed(() => !over.value && games.value.length > 0 && !game
     <div v-if="props.tournament.yourTable" class="row">
       <button class="primary" :disabled="props.busy" @click="emit('go', props.tournament.yourTable)">{{ t('tournament.yourTable') }}</button>
     </div>
+    <template v-else-if="waiting">
+      <p class="muted">{{ t('tournament.readyExplain') }}</p>
+      <div class="row">
+        <button v-if="!props.tournament.youReady" class="primary" :disabled="props.busy" @click="emit('ready', true)">{{ t('tournament.readyUp') }}</button>
+        <button v-else class="quiet" :disabled="props.busy" @click="emit('ready', false)">{{ t('tournament.notYet') }}</button>
+        <span class="muted">{{ t('tournament.readyCount', { n: props.tournament.readyNow, of: props.tournament.readyOf }) }}</span>
+      </div>
+      <ul v-if="notReady.length" class="waiting-for">
+        <li v-for="person in notReady" :key="person.id">
+          <span>{{ person.name }}</span>
+          <button v-if="props.isHost && slotOf(person.id) !== null" class="quiet" :disabled="props.busy" @click="emit('kick', slotOf(person.id))">{{ t('common.remove') }}</button>
+        </li>
+      </ul>
+    </template>
     <p v-else-if="sittingOut" class="muted">{{ t('tournament.sittingOut') }}</p>
     <p v-else-if="!over" class="muted">{{ t('tournament.waiting') }}</p>
   </section>
@@ -79,12 +102,23 @@ const sittingOut = computed(() => !over.value && games.value.length > 0 && !game
 </template>
 
 <style scoped>
-.tables {
+.tables,
+.waiting-for {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 0.4rem;
+}
+.waiting-for li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
 }
 .table {
   display: flex;

@@ -101,7 +101,13 @@ defineExpose({ state, send });
   />
   <template v-else>
     <ErrorToast v-if="notice" :text="notice" />
-    <TournamentBar v-if="tournament?.here" :tournament="tournament" :busy="busy" @go="(code) => send('join', { code })" />
+    <TournamentBar
+      v-if="tournament?.here"
+      :tournament="tournament"
+      :busy="busy"
+      @go="(code) => send('join', { code })"
+      @ready="(on) => send('tournamentReady', { ready: on })"
+    />
     <template v-if="running">
       <TournamentLobby
         v-if="state.phase === lobbyPhase"
@@ -113,7 +119,15 @@ defineExpose({ state, send });
         @kick="(slot) => send('kick', { slot })"
         @start="send('start')"
       />
-      <TournamentBoard v-else :tournament="tournament" :busy="busy" @go="(code) => send('join', { code })" />
+      <TournamentBoard
+        v-else
+        :tournament="tournament"
+        :busy="busy"
+        @go="(code) => send('join', { code })"
+        @ready="(on) => send('tournamentReady', { ready: on })"
+        @kick="(slot) => send('kick', { slot })"
+        :is-host="isHost"
+      />
     </template>
     <template v-else>
       <slot v-if="state.phase === lobbyPhase" name="lobby" :state="state" :send="send" />
