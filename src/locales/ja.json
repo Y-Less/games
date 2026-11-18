@@ -555,7 +555,11 @@
     "tournamentNoAgain": "トーナメントは一度だけです。もう一度遊ぶには新しい部屋を作ってください。",
     "tournamentSettingsFirst": "トーナメントのゲームは、有効にする前に選んだ設定で行われます。変えるには一度オフにしてください。",
     "notYourTable": "そのゲームは、対戦するよう振り分けられた人のためのものです。",
-    "notATournament": "この部屋はトーナメントではありません。"
+    "notATournament": "この部屋はトーナメントではありません。",
+    "tournamentNotWaiting": "このラウンドは準備を待っているところではありません。",
+    "notInThisTournament": "あなたはこのトーナメントに参加していません。",
+    "tournamentHostOnly": "トーナメントから人を外せるのはホストだけです。",
+    "tournamentNobodyThere": "そこに外せる人はいません。"
   },
   "facts": {
     "gameOver": "ゲーム終了",

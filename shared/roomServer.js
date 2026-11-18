@@ -228,9 +228,10 @@ const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome
  *   every module is heard without any of their server.js files knowing anything about it.
  * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random, created once here)
  * @param {() => number} [options.now]  the clock in milliseconds (default Date.now, created once here)
- * @returns {{ dispose: () => void, rooms: Map<string, object>, openFor: Function, changed: Function }} dispose() stops
- *   timers and saves; `rooms` is exposed for tests; `openFor` opens a started room for people who did not ask for it
- *   themselves (see below); `changed` saves and sends a room that something outside the protocol has altered
+ * @returns {{ dispose: () => void, rooms: Map<string, object>, openFor: Function, changed: Function, tournamentsOf: Function }}
+ *   dispose() stops timers and saves; `rooms` is exposed for tests; `openFor` opens a started room for people who did
+ *   not ask for it themselves (see below); `changed` saves and sends a room that something outside the protocol has
+ *   altered; `tournamentsOf` is the tournaments one person is in, for the site's list of them
  */
 export function createRoomServer(ctx, options) {
   const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, onFinished = ctx.onGameFinished, tournament = true, rng = Math.random, now = Date.now } = options;
@@ -442,7 +443,10 @@ export function createRoomServer(ctx, options) {
     on('kick', (payload) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'notInAnyGame' };
-      const outcome = game.kick(room, userId, payload.slot, rng, now());
+      // A tournament under way is in a phase no game knows, so its own `kick` would say the game was over.  It is
+      // also the one time removing somebody is urgent: a round waits on everybody saying they are ready, and the
+      // host putting out whoever is never coming back is what gets it going again.
+      const outcome = tournaments.isRunning(room) ? tournaments.putOut(room, userId, payload.slot, rng, now()) : game.kick(room, userId, payload.slot, rng, now());
       if (!outcome.ok) return refused(outcome);
       // Somebody put out of a tournament keeps the games they played, and is taken out of the ones still to come.
       tournaments.withdraw(room, outcome.userId);
@@ -488,6 +492,22 @@ export function createRoomServer(ctx, options) {
     // tables a moment later.
     on('start', () => act((room) => (tournaments.settingOf(room) ? tournaments.start(room, userId, now()) : (startRule ?? game.start)(room, userId, rng, now()))));
     on('again', () => act((room) => tournaments.againRefused(room) ?? game.playAgain(room, userId)));
+    // Between rounds a tournament waits for everybody still in it to say they are ready, and opens the round itself
+    // once the last of them has (shared/tournamentRoom.js).  `act` is no use: it asks the game for a seat, and a
+    // tournament's people are not sitting at a table of it.
+    on('ready', (payload) => {
+      const room = roomOfSocket();
+      if (!room) return { ok: false, error: 'notInAnyGame' };
+      // Said from the table they have just finished as readily as from the tournament itself: that is where somebody
+      // reading the last of the scores is sitting, and being sent back to another room to press a second button
+      // would be a worse answer than simply hearing them.
+      const held = tournaments.settingOf(room) ? room : tournaments.parentOf(room);
+      if (!held) return { ok: false, error: 'notATournament' };
+      const outcome = tournaments.setReady(held, userId, payload.ready !== false);
+      if (!outcome.ok) return refused(outcome);
+      life.changed(held);
+      return { ok: true };
+    });
 
     registerEvents({ on, act: playAct, userId, socket, rng, now, roomOf: roomOfSocket, relay: life.relay });
 
@@ -504,7 +524,22 @@ export function createRoomServer(ctx, options) {
     });
   });
 
+  /**
+   * The tournaments this person is in, for the site's list of them (server/modules.js gathers every game's).  It is
+   * read from the store's index of who is in which room, so it costs nothing to ask for and answers for somebody who
+   * is not connected at all — which is the point, since a tournament between rounds is something you come back to.
+   *
+   * @param {number} userId  whose tournaments
+   * @returns {object[]} one row each (see `rowFor` in shared/tournamentRoom.js), oldest news last
+   * Side effects: none.
+   */
+  const tournamentsOf = (userId) =>
+    life
+      .roomsOf(userId)
+      .flatMap((room) => tournaments.rowFor(room, userId) ?? [])
+      .sort((one, other) => other.updatedAt - one.updatedAt);
+
   // `changed` is here for something outside the protocol that has altered a room and must have it saved and sent: the
   // tour, whose rooms move on when a game in another module ends rather than when anybody sends anything.
-  return { rooms: life.rooms, dispose: life.dispose, openFor, changed: life.changed };
+  return { rooms: life.rooms, dispose: life.dispose, openFor, changed: life.changed, tournamentsOf };
 }

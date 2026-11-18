@@ -397,6 +397,8 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     taken: (code) => rooms.has(code),
     /** The room a socket is looking at, or undefined. */
     roomAt: (code) => rooms.get(code),
+    /** Every room this person is in, found through the store's index rather than by looking through all of them. */
+    roomsOf,
     /** Somebody has opened a connection, or closed one. */
     addSocket: (userId, socket) => registry.add(userId, socket),
     dropSocket: (userId, socket) => registry.drop(userId, socket),

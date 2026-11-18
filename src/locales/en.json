@@ -568,7 +568,11 @@
     "tournamentNoAgain": "A tournament is played once. Start a new room for another.",
     "tournamentSettingsFirst": "A tournament's games use the settings chosen before it was switched on. Switch it off to change them.",
     "notYourTable": "That game is for the people drawn to play it.",
-    "notATournament": "This room is not a tournament."
+    "notATournament": "This room is not a tournament.",
+    "tournamentNotWaiting": "This round is not waiting for anybody to be ready.",
+    "notInThisTournament": "You are not in this tournament.",
+    "tournamentHostOnly": "Only the host can put somebody out of a tournament.",
+    "tournamentNobodyThere": "There is nobody there to put out."
   },
   "facts": {
     "gameOver": "Game over",

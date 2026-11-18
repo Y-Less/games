@@ -15,7 +15,16 @@
 // many places the room held before, so that switching the setting off puts the lobby back exactly as it was.  From
 // the start it also holds `rounds` (the whole evening, drawn up at once), which `round` and `opened` walk through,
 // `tables` (the round being played) and `last` (the one before it), `standings`, the `names` of everybody taking
-// part as they were when it started, and `due`, the long stop for a table nobody finishes.
+// part as they were when it started, `ready` and `gone` (see below), and `due`, the long stop for a table nobody
+// finishes.
+//
+// Between rounds the evening waits.  Every round after the first opens only once everybody still in has said they are
+// ready for it, which is what lets a tournament be played over a week of evenings rather than in one sitting: finish
+// your game, close the tab, and come back when the next round suits you.  It is asked for even of people playing
+// straight through, because the alternative is a round opening for somebody who has walked away from it — and then
+// an evening held up by a table nobody is sitting at.  `ready` is who has said so (cleared as each round is taken
+// in), and `gone` is everybody who has left or been put out, so that the people still waited for are the people
+// still here.
 //
 // Each table is an ordinary started room of the game with `room.inTournament = { code, round, players }` on it: that
 // is what makes it one of the evening's rather than a game of its own, and what keeps anybody who was not drawn to
@@ -23,7 +32,7 @@
 //
 // Depends on: shared/tournament.js, shared/members.js, and shared/input.js.
 import { numberFrom } from './input.js';
-import { fail, hostInLobby, isHuman, ok } from './members.js';
+import { barFromRoom, fail, hostInLobby, isHuman, ok } from './members.js';
 import { MAX_ENTRANTS, MAX_TABLES, checkTable, defaultTable, ranking, recordTable, schedule, tableCount, tableSize } from './tournament.js';
 
 /** More places than any game has, so that a game asked to fill a table of this many answers with the most it allows. */
@@ -51,6 +60,8 @@ export const NO_TOURNAMENTS = {
   blockFor: () => null,
   viewFor: () => null,
   start: () => fail('tournamentNotHere'),
+  setReady: () => fail('tournamentNotHere'),
+  putOut: () => fail('tournamentNotHere'),
   nextAction: () => null,
   parentOf: () => null,
   related: () => false,
@@ -58,6 +69,8 @@ export const NO_TOURNAMENTS = {
   withdraw: () => {},
   againRefused: () => null,
   isRunning: () => false,
+  isWaiting: () => false,
+  rowFor: () => null,
   tableCodes: () => [],
 };
 
@@ -198,6 +211,89 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
 
   /** Is this room a tournament with its tables being played? */
   const isRunning = (room) => Boolean(settingOf(room)) && room.phase === TOURNAMENT_PHASE;
+
+  /**
+   * Everybody still in this tournament, by the names taken down when it started, minus whoever has since left or been
+   * put out.
+   *
+   * This is not the room's own people, and the difference matters: a game that keeps a list of players leaves
+   * somebody who walks out of a finished room on it, marked as gone, so that they stay on its score sheet.  A
+   * tournament waiting on such a ghost to say it was ready would wait for ever.
+   *
+   * @param {object} played  the tournament (`room.tournament`)
+   * @returns {number[]} the account ids
+   * Side effects: none.
+   */
+  const stillIn = (played) => Object.keys(played.names ?? {}).map(Number).filter((id) => !(played.gone ?? []).includes(id));
+
+  /**
+   * Is this tournament waiting for everybody to say they are ready for the next round?
+   *
+   * The first round is not waited for: the host's Start is what says everybody is here, and they are, since they are
+   * all standing in the lobby.  A round that withdrawals have emptied is not waited for either — there is nothing to
+   * be ready for — and nor is one that is already being played.
+   *
+   * @param {object} room  the room
+   * @returns {boolean}
+   * Side effects: none.
+   */
+  function isWaiting(room) {
+    const played = settingOf(room);
+    if (!played || room.phase !== TOURNAMENT_PHASE || played.opened === played.round) return false;
+    return played.round > 0 && Boolean((played.rounds?.[played.round] ?? []).length);
+  }
+
+  /** Has everybody still in said they are ready for the round that is waiting? */
+  const allReady = (played) => stillIn(played).every((id) => played.ready?.[id]);
+
+  /**
+   * Somebody says they are ready for the next round, or takes it back.  The round opens by itself once the last of
+   * them has said so (`nextAction`), so nobody starts it and nobody waits on the host to.
+   *
+   * @param {object} room  the tournament
+   * @param {number} userId  who is saying
+   * @param {boolean} on  ready, or no longer ready
+   * @returns {{ ok: boolean, error?: string }}
+   * Side effects: sets or clears their place in `room.tournament.ready`.
+   */
+  function setReady(room, userId, on) {
+    const played = settingOf(room);
+    if (!played || room.phase !== TOURNAMENT_PHASE) return fail('notATournament');
+    if (!isWaiting(room)) return fail('tournamentNotWaiting');
+    if (!stillIn(played).includes(userId)) return fail('notInThisTournament');
+    played.ready ??= {};
+    if (on) played.ready[userId] = true;
+    else delete played.ready[userId];
+    return ok();
+  }
+
+  /**
+   * The host puts somebody out of a tournament that is under way, which is how a round waiting on a person who is
+   * never coming back is got going again.
+   *
+   * The game's own `kick` is no use here: it asks the game whether the room is live, and the phase a tournament runs
+   * in is not one any game has ever heard of, so it answers that the game is over.  Nothing else differs — the person
+   * is removed as anybody who leaves is, barred so the invitation does not let them straight back in, and taken out
+   * of the rounds still to come by the caller's `withdraw`.
+   *
+   * @param {object} room  the tournament
+   * @param {number} hostId  who is asking
+   * @param {string} slot  the slot of the person to put out
+   * @param {() => number} random  the server's random numbers
+   * @param {number} at  the time now
+   * @returns {{ ok: boolean, userId?: number, error?: string }}
+   * Side effects: removes them from the room and bars them.
+   */
+  function putOut(room, hostId, slot, random, at) {
+    if (!isRunning(room)) return fail('notATournament');
+    if (room.hostId !== hostId) return fail('tournamentHostOnly');
+    const target = layout.at(room, slot);
+    if (!isHuman(target) || target.id === hostId) return fail('tournamentNobodyThere');
+    const removed = game.removeHuman(room, target.id, random, at);
+    if (!removed.ok) return removed;
+    barFromRoom(room, target.id);
+    return ok({ userId: target.id });
+  }
   /** The tournament a table belongs to, or null (for the tournament itself, or an ordinary room). */
   const parentOf = (room) => (room?.inTournament ? (roomOf(room.inTournament.code) ?? null) : null);
 
@@ -258,6 +354,10 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
       // Who is taking part, taken down now: somebody who leaves half way through is still on the standings, and the
       // tables yet to come are opened for people who may not be in the room to be asked their name.
       names: Object.fromEntries(people.map((person) => [person.id, person.name ?? ''])),
+      // Who has said they are ready for the round that is waiting, and who has gone for good.  The first round is
+      // not waited for, so both start empty.
+      ready: {},
+      gone: [],
       due: at + ROUND_LIMIT_MS,
     };
     room.phase = TOURNAMENT_PHASE;
@@ -318,6 +418,8 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
     }
     played.last = played.tables;
     played.round += 1;
+    // Nobody is ready for a round that did not exist a moment ago: the next one is waited for afresh.
+    played.ready = {};
     played.due = at + ROUND_LIMIT_MS;
     if (played.round >= played.rounds.length) room.phase = 'finished';
     else played.tables = [];
@@ -340,7 +442,13 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
   function nextAction(room, clock) {
     if (!isRunning(room)) return null;
     const played = room.tournament;
-    if (played.opened !== played.round) return { key: `open:${played.round}`, wait: 0, run: () => openRound(room, clock()) };
+    if (played.opened !== played.round) {
+      // The round is owed, but not yet: it waits on everybody still in saying they are ready for it, and the last of
+      // them to say so is what brings the server back here.  Nothing is timed, because there is nothing to time out —
+      // a tournament may be left standing between rounds for as long as the rooms are kept.
+      if (isWaiting(room) && !allReady(played)) return null;
+      return { key: `open:${played.round}`, wait: 0, run: () => openRound(room, clock()) };
+    }
     const over = played.tables.filter(tableOver).length;
     // The count of tables that are over is part of the key, because the wait depends on it: the last table finishing
     // turns hours of waiting into none, and a timer whose key had not changed would be left to run the hours out.
@@ -363,6 +471,10 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
   function withdraw(room, userId) {
     const played = settingOf(room);
     if (!played?.rounds) return;
+    // Taken off the list of people still here, so that a round is not left waiting on somebody who has gone — and so
+    // that the one who went being the last to say they were ready lets the round open at once.
+    if (!(played.gone ?? []).includes(userId)) played.gone = [...(played.gone ?? []), userId];
+    delete played.ready?.[userId];
     const from = played.opened === played.round ? played.round + 1 : played.round;
     for (let round = from; round < played.rounds.length; round++) {
       played.rounds[round] = played.rounds[round].map((ids) => ids.filter((id) => id !== userId)).filter((ids) => ids.length);
@@ -374,6 +486,38 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
    * drawn up once and played once, and a table played twice would be counted twice.
    */
   const againRefused = (room) => (settingOf(room) || room?.inTournament ? fail('tournamentNoAgain') : null);
+
+  /**
+   * This tournament in one line, for the list of the ones a person is in — which is drawn by the site, across every
+   * game, rather than by any game's own screens (see `tournamentsOf` in shared/roomServer.js).
+   *
+   * It is deliberately small: enough to say where the evening has got to and whether it is waiting on the reader,
+   * and nothing of the standings or the tables, which are a click away.
+   *
+   * @param {object} room  a room, which is a row only if it is a tournament this person is still in
+   * @param {number} userId  whose list it is
+   * @returns {object | null}
+   * Side effects: none.
+   */
+  function rowFor(room, userId) {
+    const played = settingOf(room);
+    if (!played?.rounds || !stillIn(played).includes(userId)) return null;
+    const waiting = isWaiting(room);
+    const here = stillIn(played);
+    return {
+      code: room.code,
+      over: room.phase === 'finished',
+      round: Math.min((played.round ?? 0) + 1, played.rounds.length),
+      rounds: played.rounds.length,
+      people: here.length,
+      waiting,
+      youReady: Boolean(played.ready?.[userId]),
+      readyNow: here.filter((id) => played.ready?.[id]).length,
+      readyOf: here.length,
+      yourTable: (played.tables ?? []).find((table) => table.players.includes(userId))?.code ?? null,
+      updatedAt: room.updatedAt ?? 0,
+    };
+  }
 
   /** The codes of the rooms this tournament has open or has just finished: who else must be told when it moves on. */
   const tableCodes = (room) => {
@@ -458,8 +602,16 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
     // Everybody who entered, by the names taken down at the start: somebody who has left is still on the standings.
     const roster = played.names ? Object.entries(played.names).map(([id, name]) => ({ id: Number(id), name })) : entrants(room).map((person) => ({ id: person.id, name: person.name ?? '' }));
     const mine = (played.tables ?? []).find((table) => table.players.includes(userId));
+    const waiting = isWaiting(room);
+    const present = stillIn(played);
     return {
       on: true,
+      // Between rounds: whether the gate is up, whether this person has said they are ready, and who is still to say.
+      waiting,
+      youReady: Boolean(played.ready?.[userId]),
+      readyNow: present.filter((id) => played.ready?.[id]).length,
+      readyOf: present.length,
+      notReady: waiting ? present.filter((id) => !played.ready?.[id]).map((id) => ({ id, name: played.names?.[id] ?? '' })) : [],
       humans: played.humans,
       bots: played.bots,
       size: tableSize(played),
@@ -516,5 +668,5 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
     };
   }
 
-  return { enabled: true, settingOf, isRunning, setTable, botsRefused, blockFor, viewFor, start, nextAction, parentOf, related, admits, withdraw, againRefused, tableCodes };
+  return { enabled: true, settingOf, isRunning, isWaiting, setTable, botsRefused, blockFor, viewFor, start, setReady, putOut, rowFor, nextAction, parentOf, related, admits, withdraw, againRefused, tableCodes };
 }
