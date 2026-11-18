@@ -96,3 +96,46 @@ test('config: anybody may read it, and it carries exactly the presets the server
   assert.deepEqual(stranger.data.games.map((g) => g.id).sort(), ['plain', 'ruled'], 'the games that loaded, and only those');
   assert.deepEqual((await c.get('/api/config')).data, stranger.data, 'signed in or not, it is the same');
 });
+
+/** A module that answers with one tournament of the given vintage, as a room-based game's server half does. */
+const tournamentServer = (code, updatedAt) =>
+  `export default function () {
+  return { tournamentsOf: () => [{ code: '${code}', over: false, round: 2, rounds: 3, people: 4, waiting: true, youReady: false, readyNow: 2, readyOf: 4, yourTable: null, updatedAt: ${updatedAt} }] };
+}`;
+
+test('my tournaments: every game is asked, each row says which game it is, and the newest news comes first', async (t) => {
+  // The list is what somebody comes back to a tournament through, days after the round they last played, so it is
+  // gathered across the whole site rather than belonging to any one game.
+  const modulesDir = writeModules(t, {
+    older: { 'module.json': manifest('older', { name: 'Older Game' }), 'server.js': tournamentServer('aaa-bbb-ccc', 10) },
+    newer: { 'module.json': manifest('newer', { name: 'Newer Game' }), 'server.js': tournamentServer('ddd-eee-fff', 20) },
+    quiet: { 'module.json': manifest('quiet'), 'server.js': EMPTY_SERVER },
+  });
+  const made = await withSite(t, { modulesDir });
+  const c = made.client();
+  await register(c);
+
+  const res = await c.get('/api/my/tournaments');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.data.tournaments.map((row) => row.code), ['ddd-eee-fff', 'aaa-bbb-ccc'], 'the newest first');
+  assert.deepEqual(res.data.tournaments.map((row) => row.game), ['newer', 'older'], 'each knows the game it belongs to');
+  assert.equal(res.data.tournaments[0].name, 'Newer Game', 'and names it, for a site that has not loaded the menu yet');
+  assert.equal(res.data.tournaments[0].round, 2, 'with where the evening has got to');
+  // A module with no rooms at all is simply not in the answer, rather than an error.
+  assert.equal(res.data.tournaments.some((row) => row.game === 'quiet'), false);
+  assert.equal((await made.client().get('/api/my/tournaments')).status, 401, 'and it is nobody else\'s business');
+});
+
+test('my tournaments: a game that will not answer is left out and the others are still listed', async (t) => {
+  const modulesDir = writeModules(t, {
+    cross: { 'module.json': manifest('cross'), 'server.js': 'export default function () {\n  return { tournamentsOf: () => { throw new Error(\'no\'); } };\n}' },
+    calm: { 'module.json': manifest('calm'), 'server.js': tournamentServer('aaa-bbb-ccc', 10) },
+  });
+  const made = await withSite(t, { modulesDir });
+  const c = made.client();
+  await register(c);
+
+  const res = await c.get('/api/my/tournaments');
+  assert.equal(res.status, 200, 'one game throwing does not take the page down');
+  assert.deepEqual(res.data.tournaments.map((row) => row.game), ['calm']);
+});

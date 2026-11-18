@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 import { catalogue } from '../catalogueText.js';
 import { session } from '../session.js';
+import MyTournaments from '../components/MyTournaments.vue';
 
 const { t } = useI18n();
 // The folder a game is installed in, named in the empty-menu text.
@@ -35,6 +36,9 @@ const players = (g) => (g.minPlayers === g.maxPlayers ? t('games.players', { cou
     <i18n-t v-if="!session.games.length" keypath="games.none" tag="p" class="panel">
       <template #folder><code>{{ MODULES_FOLDER }}</code></template>
     </i18n-t>
+
+    <!-- A tournament is played over days if its people like, so the way back into one belongs on the page they land on. -->
+    <MyTournaments />
 
     <div v-for="group in groups" :key="group.key" class="stack">
       <h2>{{ catalogue.categoryLabel(group.key) }}</h2>

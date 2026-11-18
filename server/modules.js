@@ -86,7 +86,7 @@ function readManifest(dir, folder) {
  * @param {string} options.dataDir  where per-module data folders are created
  * @param {(userId: number, item: string) => boolean} [options.owns]  whether a user owns a shop item
  * @param {(...args: any[]) => void} [options.log]  the logger (console.log by default)
- * @returns {Promise<{ list: () => object[], rules: (id: string) => string | null, dispose: () => Promise<void> }>}
+ * @returns {Promise<{ list: () => object[], tournamentsOf: (userId: number) => object[], rules: (id: string) => string | null, dispose: () => Promise<void> }>}
  * Side effects: registers socket middleware per namespace, creates data folders, mounts static routes on `app`, imports and
  *   runs each module's server.js, and wraps each connected socket's `emit` to time slow turns.
  */
@@ -217,9 +217,9 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
 
       const entry = await import(pathToFileURL(path.join(dir, meta.id, 'server.js')).href);
       const handle = (await entry.default(ctx)) ?? {};
-      // `openFor` is on the handle every room-based game returns from createRoomServer, so collecting it here reaches
-      // all of them without a single module's server.js mentioning it.
-      modules.set(meta.id, { meta, dir: path.join(dir, meta.id), dispose: handle.dispose, openFor: handle.openFor });
+      // `openFor` and `tournamentsOf` are on the handle every room-based game returns from createRoomServer, so
+      // collecting them here reaches all of them without a single module's server.js mentioning either.
+      modules.set(meta.id, { meta, dir: path.join(dir, meta.id), dispose: handle.dispose, openFor: handle.openFor, tournamentsOf: handle.tournamentsOf });
       log(`module loaded: ${meta.id} (${meta.name})`);
     } catch (error) {
       console.error(`Could not load module "${folder.name}":`, error);
@@ -229,6 +229,29 @@ export async function loadModules({ dir, io, app, auth, stats, achievements, dat
   return {
     /** The loaded modules' manifests, sorted by name.  @returns {ModuleMeta[]}  Side effects: none. */
     list: () => [...modules.values()].map((m) => m.meta).sort((a, b) => a.name.localeCompare(b.name)),
+    /**
+     * Every tournament this person is in, across every game, newest news first.
+     *
+     * A tournament is played over as long as its people like — a round an evening, if that suits them — so it is not
+     * something you are expected to still have open in a tab.  This is what the site's own list of them is built
+     * from, and each row says which game it is so that one list can hold the lot.
+     *
+     * @param {number} userId  whose tournaments
+     * @returns {Array<object & { game: string, name: string }>}
+     * Side effects: none (each module answers from its own store's index).
+     */
+    tournamentsOf(userId) {
+      const rows = [];
+      for (const { meta, tournamentsOf } of modules.values()) {
+        if (!tournamentsOf) continue; // a module that is not room-based has no tournaments to be in
+        try {
+          for (const row of tournamentsOf(userId)) rows.push({ ...row, game: meta.id, name: meta.name });
+        } catch (error) {
+          log(`[${meta.id}] could not list the tournaments:`, error);
+        }
+      }
+      return rows.sort((one, other) => other.updatedAt - one.updatedAt);
+    },
     /**
      * The text of a module's rules file, or null when it has none; refuses paths that escape the module's folder.  With a
      * language, a translation next to the rules file (rules.md -> rules.fr.md) is preferred when there is one.
