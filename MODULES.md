@@ -217,8 +217,8 @@ to the rules and the computer players.  Rules and AIs must not default to `Math.
 **Every room-based game can be played as a tournament, and no game writes a line of it.**  It is a lobby setting
 (`settings` carries `tournament: { on, humans, bots }`), and with it on the room stops being a table and becomes the
 keeper of a list of them: its people are dealt into games of `humans` people and `bots` computer players, each one a
-real room in the same module opened through `openFor`, and when every game of a round has finished the next
-combination is dealt out, until every combination has played once.  `shared/tournament.js` is the arithmetic of an
+real room in the same module opened through `openFor`, and when every game of a round has finished — and everybody
+still in has said they are ready — the next combination is dealt out, until every combination has played once.  `shared/tournament.js` is the arithmetic of an
 evening (the rounds, which for pairs is the chess club's rotating ring, and the standings); `shared/tournamentRoom.js`
 is what it does to a room; the room server and `shared/roomLife.js` run it.  A game opts out with `tournament: false`
 (only the tour does: an evening of evenings is nobody's evening).
@@ -242,6 +242,18 @@ What a game author needs to know about it:
 - A table of a tournament is an ordinary started room of your game, with `room.inTournament` on it.  It admits only
   the people drawn to play at it, it is never played again, and its `statsPlayers` is what the standings are counted
   from — so a game that reports its results properly needs nothing else to take part.
+- **An evening may be played over several.**  Every round after the first opens only once everybody still in has sent
+  `tournamentReady`, so a tournament can be left standing between rounds and come back to; the site lists the ones a
+  person is in at `GET /api/my/tournaments`, gathered from every module through the `tournamentsOf` on the handle
+  `createRoomServer` returns.  Nothing of this reaches your game: it happens in the room your game is never handed.
+
+### Several games at once
+
+**Nobody is held to one game.**  A person may have two games of yours going, a tournament of it besides, and
+something else in another module; each room is reached by its own invite code, `resume` with no code gives the one
+last played in, and walking into a room neither leaves nor disturbs any other.  A game that assumed one room per
+account — a lobby that said "you are already in a game", say — would be wrong.  Nothing in the rules vocabulary
+changes: every rule is asked about one room, as it always was.
 
 ### Where the rooms are kept
 

@@ -78,3 +78,43 @@ test('a tournament: the offer, the lobby it replaces, and the game it draws you 
   await ann.waitForText('Round 1 of 1');
   await ann.waitForCodeInUrl(code);
 }));
+
+test('the way back: a tournament is listed on the home page, and an ordinary game can be played beside it', { timeout: 120000 }, guarded('tournament-list', async () => {
+  const ann = await world.newUser('ann');
+  await ann.signUp('tourney', { displayName: 'Ann' });
+  const bob = await world.newUser('bob');
+  await bob.signUp('tourney', { displayName: 'Bob' });
+
+  await ann.goto('/play/hearts');
+  await ann.clickButton('Start a new game of Hearts');
+  await ann.waitForText('Waiting for players');
+  const code = await ann.inviteCode();
+  await bob.goto(`/play/hearts?${code}`);
+  await ann.waitForText('Bob');
+  await tick(ann, 'Play this as a tournament');
+  await ann.waitForText('people here');
+  await ann.clickButton('Start the tournament');
+  await ann.waitForText('Round 1 of 1');
+
+  // A tournament is played over as long as its people like, so the home page is the way back into it.
+  await ann.goto('/');
+  await ann.waitForText('Your tournaments');
+  await ann.waitForText('Round 1 of 1');
+
+  // And leaving the page for another game of the same thing does not give the tournament up: an account may have as
+  // many games on the go as it likes.  `?new` is what asks for a game to start rather than the last one to resume,
+  // which is the whole difference once somebody can be in two.
+  await ann.goto('/play/hearts?new');
+  await ann.clickButton('Start a new game of Hearts');
+  await ann.waitForText('Waiting for players');
+  const other = await ann.inviteCode();
+  assert.notEqual(other, code, 'a room of its own');
+
+  // The list still knows where she belongs, and says the plainest thing it can: her game of the tournament is open.
+  await ann.goto('/');
+  await ann.waitForText('Your tournaments');
+  await ann.waitForText('your game is open');
+  await ann.clickButton('Go to your game');
+  await ann.waitForSelector('.score-bar');
+  await ann.waitForText('Round 1 of 1'); // the bar above the game, which came from the tournament
+}));

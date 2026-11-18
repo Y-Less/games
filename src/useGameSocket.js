@@ -13,7 +13,21 @@ import { useGameText } from './useGameText.js';
  * @returns {string}  the code, or ''
  * Side effects: none.
  */
-export const inviteFrom = (search) => String(search ?? '').replace(/^\?/, '');
+export const inviteFrom = (search) => (isFreshStart(search) ? '' : String(search ?? '').replace(/^\?/, ''));
+
+/**
+ * Does this address ask for a game to be started rather than one of yours to be resumed?
+ *
+ * Opening a game resumes the one you were last playing, which is what somebody coming back wants.  Since an account
+ * may have several games on the go at once (see `enter` in shared/roomLife.js), there has to be a way of saying "not
+ * that one, a new one", and `/play/hearts?new` is it: the entry screen, with its Start and its invite box.  "new" is
+ * not a possible invite code, which are three words with hyphens between them.
+ *
+ * @param {*} search  location.search
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const isFreshStart = (search) => String(search ?? '').replace(/^\?/, '') === 'new';
 
 /**
  * Connects a game client to its module socket.
@@ -50,6 +64,10 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   const { error: errorWords } = useGameText(); // a refusal's code, in the player's language
   const initialCode = inviteFrom(search);
   let invite = initialCode; // used once, by the first `resume`
+  // "?new" asks for the entry screen rather than the game you were last in, which is how a second game of the same
+  // thing is started.  It lasts until a room is actually entered, so that losing the connection meanwhile does not
+  // quietly put somebody back into the game they had set aside.
+  let fresh = isFreshStart(search);
 
   /**
    * Sends one request to the server and waits for its answer.  A request the server never answers (its handler threw
@@ -98,6 +116,10 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
   async function resume() {
     const code = state.value?.code ?? invite;
     invite = '';
+    if (!code && fresh) {
+      loaded.value = true; // the entry screen, rather than whichever game they were last in
+      return;
+    }
     await send('resume', { code });
   }
 
@@ -113,6 +135,7 @@ export function useGameSocket({ socket, search = '', setSearch = () => {}, leave
     onState(next, state.value);
     state.value = next;
     loaded.value = true;
+    if (next) fresh = false; // in a room now: a reconnection should put them back into this one
     setSearch(next ? next.code : '');
   }
 

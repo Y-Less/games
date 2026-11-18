@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { mount } from '@vue/test-utils';
 import { leaveOffer, playBar } from './playBar.js';
-import { ACK_TIMEOUT_MS, inviteFrom, useGameSocket } from './useGameSocket.js';
+import { ACK_TIMEOUT_MS, inviteFrom, isFreshStart, useGameSocket } from './useGameSocket.js';
 
 /** A stand-in socket: records listeners and emitted events, and answers with `reply` (nothing when undefined). */
 function fakeSocket({ connected = true, reply = { ok: true } } = {}) {
@@ -41,6 +41,41 @@ describe('inviteFrom', () => {
     expect(inviteFrom('?boss-aware-you')).toBe('boss-aware-you');
     expect(inviteFrom('')).toBe('');
     expect(inviteFrom(undefined)).toBe('');
+  });
+
+  it('does not read "new" as an invite code, since it asks for a game rather than naming one', () => {
+    expect(inviteFrom('?new')).toBe('');
+    expect(isFreshStart('?new')).toBe(true);
+    expect(isFreshStart('?boss-aware-you')).toBe(false);
+    expect(isFreshStart('')).toBe(false);
+  });
+});
+
+describe('starting another game', () => {
+  // An account may have several games on the go, so opening a game has to mean two different things: carry on with
+  // the one I was in, and start me another.  "?new" is the second.
+  it('asks for nothing and shows the entry screen, rather than resuming the last game', () => {
+    const socket = fakeSocket();
+    const { api } = mountWith(socket, { search: '?new' });
+    expect(socket.emitted).toEqual([]);
+    expect(api.state.value).toBe(null);
+    expect(api.loaded.value).toBe(true, 'the entry screen, not a spinner');
+    expect(api.initialCode).toBe('');
+  });
+
+  it('does not quietly resume the set-aside game when the connection comes back', () => {
+    const socket = fakeSocket();
+    mountWith(socket, { search: '?new' });
+    socket.fire('connect');
+    expect(socket.emitted).toEqual([]);
+  });
+
+  it('resumes the room once one has been entered, as any other page does', () => {
+    const socket = fakeSocket();
+    mountWith(socket, { search: '?new' });
+    socket.fire('state', { code: 'boss-aware-you', phase: 'lobby' });
+    socket.fire('connect');
+    expect(socket.emitted).toEqual([['resume', { code: 'boss-aware-you' }]]);
   });
 });
 
