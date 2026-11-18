@@ -29,8 +29,10 @@ const mostPeople = computed(() => Math.min(limits.value.max, limits.value.maxEnt
 const mostBots = computed(() => limits.value.max - props.tournament.humans);
 /** The fewest computer players this table can have and still be a game. */
 const fewestBots = computed(() => Math.max(0, limits.value.min - props.tournament.humans));
+/** The fewest people a tournament is worth holding, which the rules own (shared/tournamentRoom.js). */
+const fewestPeople = computed(() => limits.value.minEntrants ?? 2);
 /** Enough people have come for a tournament to be worth playing. */
-const ready = computed(() => props.tournament.entrants.length >= 2);
+const ready = computed(() => props.tournament.entrants.length >= fewestPeople.value);
 </script>
 
 <template>
@@ -80,7 +82,7 @@ const ready = computed(() => props.tournament.entrants.length >= 2);
     <div class="row">
       <button v-if="props.isHost" class="primary" :disabled="!ready || props.busy" @click="emit('start')">{{ t('tournament.start') }}</button>
       <span v-else class="muted">{{ t('lobby.waitingForHost') }}</span>
-      <span v-if="props.isHost && !ready" class="muted">{{ t('tournament.needPeople', { min: 2 }) }}</span>
+      <span v-if="props.isHost && !ready" class="muted">{{ t('tournament.needPeople', { min: fewestPeople }) }}</span>
     </div>
     <label v-if="props.isHost" class="check">
       <input type="checkbox" checked @change="emit('change', { on: false })" />

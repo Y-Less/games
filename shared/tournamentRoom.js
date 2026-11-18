@@ -425,7 +425,7 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
       // evening comes to is `tablesInAll`, which is the number a lobby shows before anybody starts it.
       tables: [],
       tablesInAll: tableCount(people.length, table.humans),
-      limits: { min: playable.min, max: playable.max, maxEntrants: MAX_ENTRANTS },
+      limits: { min: playable.min, max: playable.max, minEntrants: MIN_ENTRANTS, maxEntrants: MAX_ENTRANTS },
     };
   }
 
@@ -477,7 +477,7 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
       // How many games the whole evening comes to.  Before it starts there is no schedule to count, so it is worked
       // out from the people who have come — which is the number the lobby shows while they are still arriving.
       tablesInAll: played.rounds ? played.rounds.flat().length : tableCount(entrants(room).length, played.humans),
-      limits: { min: playable.min, max: playable.max, maxEntrants: MAX_ENTRANTS },
+      limits: { min: playable.min, max: playable.max, minEntrants: MIN_ENTRANTS, maxEntrants: MAX_ENTRANTS },
     };
   }
 
