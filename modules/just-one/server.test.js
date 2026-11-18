@@ -18,7 +18,8 @@ test('a whole game with four people: create, join, start, clues, guess, best hin
   assert.equal((await ann.call('join', { code: 'boss-aware-you' })).error, 'noGameWithCode');
   const created = await ann.call('create', { rounds: 1 });
   assert.ok(created.ok);
-  assert.equal((await ann.call('create')).ok, false, 'already in a game');
+  assert.ok((await ann.call('create')).ok, 'another game beside it');
+  assert.ok((await ann.call('resume', { code: created.code })).ok, 'and back to the first');
   for (const p of [bob, cat, dan]) assert.ok((await p.call('join', { code: created.code })).ok);
   await until(() => ann.state.players.length === 4, 'four players');
   assert.equal((await bob.call('start')).ok, false, 'only the host starts');

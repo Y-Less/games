@@ -574,18 +574,19 @@ test('several games run side by side, each with its own invite code', async (t) 
   assert.notEqual(dan.state.handSize, 5);
   assert.equal((await bob.call('settings', { handSize: 6 })).ok, false, 'only the host of a game can change it');
 
-  // One game at a time: bob is in ann's, so the other one is refused and he stays where he is.
+  // Several at a time: bob is in ann's game and may be in dan's as well, each by its own code.
   const elsewhere = await bob.call('join', { code: dan.code });
-  assert.equal(elsewhere.ok, false, 'already in a game');
-  assert.equal(elsewhere.params.code, ann.code, 'and is told which');
-  await until(() => bob.state?.code === ann.code, 'bob still in the first game');
-  assert.equal(dan.state.players.length, 2);
+  assert.equal(elsewhere.ok, true, 'in both');
+  await until(() => dan.state?.players.length === 3, 'bob in the second game too');
+  assert.equal((await bob.call('resume', { code: ann.code })).ok, true);
+  await until(() => bob.state?.code === ann.code, 'and back in the first');
+  assert.equal(ann.state.players.length, 3, 'which is as it was');
 
   // Unknown codes are refused, and somebody in no game has nothing to come back to.
   assert.equal((await fay.join('no-such-game')).ok, false);
   assert.equal((await fay.call('resume')).code, null, 'an account in no game has nothing to resume');
   assert.equal((await fay.call('resume', { code: dan.code })).ok, true, 'a code in a resume is an invitation, and takes you in');
-  await until(() => dan.state.players.length === 3, 'fay in the second game');
+  await until(() => dan.state.players.length === 4, 'fay in the second game');
 
   // The same account on a second device sees the same game.
   const laptop = gus;
@@ -598,7 +599,10 @@ test('several games run side by side, each with its own invite code', async (t) 
   assert.equal(second.state.you, laptop.state.you);
   assert.equal(ann.state.players.filter((p) => p.name === 'gus').length, 1);
 
-  // The last player leaving closes the game, and its code stops working.
+  // The last player leaving closes the game, and its code stops working.  Bob is in this one as well as ann's, so
+  // he goes back to it to leave it: leaving is leaving the room you are looking at.
+  assert.equal((await bob.call('resume', { code: dan.code })).ok, true);
+  assert.equal((await bob.call('leave')).ok, true);
   assert.equal((await dan.call('leave')).ok, true);
   assert.equal((await eve.call('leave')).ok, true);
   assert.equal((await fay.call('leave')).ok, true);

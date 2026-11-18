@@ -522,8 +522,6 @@
     "seatTaken": "Это место занято.",
     "noBotInSeat": "На этом месте нет компьютерного игрока.",
     "notAnInviteCode": "Это не код приглашения. Код выглядит так: boss-aware-you.",
-    "alreadyInGameJoin": "Вы уже в игре {code}. Выйдите, чтобы зайти в другую.",
-    "alreadyInGameStart": "Вы уже в игре {code}. Выйдите, чтобы начать другую.",
     "thatGameFinished": "Та игра уже закончилась.",
     "typeInviteCode": "Введите код приглашения.",
     "notAColour": "Это не цвет.",

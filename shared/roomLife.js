@@ -107,12 +107,23 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   const alive = (room) => (tournaments.settingOf(room) ? room.phase !== 'finished' : game.isLive(room));
   // Every room this person is in, from the store's index rather than by looking through all of them.
   const roomsOf = (userId) => store.roomsOf(userId).flatMap((code) => (rooms.has(code) ? [rooms.get(code)] : []));
-  // Returns the unfinished room a person is in, or undefined.  A person is in one at a time, with the one exception
-  // the whole site has: somebody in a tournament is also at the table it sent them to, and the table is the answer —
-  // that is the game being played, and the tournament is where they came from and will go back to.
+  /**
+   * The unfinished room to put somebody back into when they ask for "my game" without naming one — which is the most
+   * recent one they were doing something in.
+   *
+   * Nobody is held to one game: a person may have several on the go in this module, and a tournament of it besides.
+   * A game is preferred to a tournament of the same vintage all the same, since a tournament between rounds is
+   * somewhere you are waiting rather than playing, and the invite code names any of them exactly.
+   *
+   * @param {number} userId  the account
+   * @returns {object | undefined}
+   * Side effects: none.
+   */
   const liveRoomOf = (userId) => {
     const live = roomsOf(userId).filter((room) => alive(room));
-    return live.find((room) => !tournaments.settingOf(room)) ?? live[0];
+    const newest = (rooms) => rooms.reduce((latest, room) => (room.updatedAt > latest.updatedAt ? room : latest), rooms[0]);
+    const playing = live.filter((room) => !tournaments.settingOf(room));
+    return playing.length ? newest(playing) : live.length ? newest(live) : undefined;
   };
 
   /**
@@ -195,6 +206,24 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     registry.attach(socket.data.user.id, socket, null);
     socket.emit('state', null);
     if (left) push(left);
+  }
+
+  /**
+   * A socket that asked for a room and was refused: it is left looking at whatever it was looking at, if that room is
+   * still there, and otherwise shown the menu.
+   *
+   * Somebody in the middle of a game who pastes a code that names nothing — a typo, or an invitation to a game that
+   * has since been thrown away — should not be taken out of the game they are sitting in to be told so.  A socket
+   * that was at the menu, or on a room that has gone or is over, has nothing worth being left looking at.
+   *
+   * @param {object} socket  the socket that was refused
+   * @returns {void}
+   * Side effects: may clear `socket.data.code` and emit a null 'state' (see `showMenu`).
+   */
+  function stayOrMenu(socket) {
+    const here = socket.data.code ? rooms.get(socket.data.code) : null;
+    if (here && alive(here)) return;
+    showMenu(socket);
   }
 
   /**
@@ -308,48 +337,36 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
   }
 
   /**
-   * Takes a person out of every room they are in (before they join or create another).
-   * @param {number} userId  the account
-   * @param {object|null} [except]  a room to leave alone (the one being joined)
-   * @returns {void}
-   * Side effects: as `leaveRoom` for each room found.
-   */
-  function leaveAllRooms(userId, except = null) {
-    for (const old of roomsOf(userId)) if (old !== except) leaveRoom(old, userId);
-  }
-
-  /**
-   * Puts a socket into a room: resumes the person's own live game, or joins the room with the given code.  With no code,
-   * a person without a live game is shown the menu.
+   * Puts a socket into a room: the one whose code it names, or — with no code — the person's own most recent live
+   * game, so that opening the game afresh carries on where they left off.
+   *
+   * Nobody is held to one game at a time.  Somebody may have a game of this going in one tab and another in the next,
+   * be in a tournament of it besides, and be in the middle of something else in another module entirely; walking into
+   * one of them neither leaves nor disturbs the rest.  Each room is named by its own invite code, and what ties the
+   * loose ends together is the list of them the site keeps (see `tournamentsOf` in shared/roomServer.js).
+   *
    * @param {object} socket  the connected socket (needs `data.user`)
    * @param {unknown} rawCode  the code as typed or pasted by the client; normalised here
    * @returns {{ ok: boolean, code?: string | null, error?: string, params?: object }} the ack for the client
-   * Side effects: attaches the socket to a room, or shows it the menu and lets go of the room it was looking at; joining adds the person to the room, leaves other rooms, and calls `changed`.
+   * Side effects: attaches the socket to a room, or shows it the menu and lets go of the room it was looking at; joining adds the person to the room and calls `changed`.
    */
   function enter(socket, rawCode) {
     const userId = socket.data.user.id;
-    const mine = liveRoomOf(userId);
     const code = ctx.codes.normalise(rawCode);
     if (rawCode && !code) return { ok: false, error: 'notAnInviteCode' };
-    // Walking from a tournament to the table it drew you to play at, or back again, is not leaving one game for
-    // another: both rooms are the same evening, and you keep your place in both.
-    const sibling = Boolean(mine && code && mine.code !== code && tournaments.related(mine, rooms.get(code)));
-    if (mine && code && mine.code !== code && !sibling) {
-      attach(socket, mine);
-      return { ok: false, error: 'alreadyInGameJoin', params: { code: mine.code } };
-    }
-    if (mine && !sibling) {
-      attach(socket, mine);
-      return { ok: true, code: mine.code };
-    }
     if (!code) {
+      const mine = liveRoomOf(userId);
+      if (mine) {
+        attach(socket, mine);
+        return { ok: true, code: mine.code };
+      }
       // A finished game is not resumed without its invite code: coming back from the menu starts afresh.
       showMenu(socket);
       return { ok: true, code: null };
     }
     const room = rooms.get(code);
     if (!room) {
-      showMenu(socket);
+      stayOrMenu(socket);
       return { ok: false, error: 'noGameWithCode' };
     }
     // A tournament table is for the people drawn to play at it.  Anybody else walking in with the code would take a
@@ -372,10 +389,9 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     }
     const added = game.addHuman(room, userId, socket.data.user.name, playerExtras(userId));
     if (!added.ok) {
-      showMenu(socket);
+      stayOrMenu(socket);
       return room.phase === 'finished' ? { ok: false, error: 'thatGameFinished' } : added;
     }
-    leaveAllRooms(userId, room);
     attach(socket, room);
     changed(room);
     return { ok: true, code };
@@ -410,7 +426,6 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     detach,
     discard,
     leaveRoom,
-    leaveAllRooms,
     putOutByVote,
     liveRoomOf,
     enter,

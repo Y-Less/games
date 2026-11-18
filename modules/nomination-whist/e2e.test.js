@@ -315,7 +315,8 @@ test('the lobby: only the host changes things, seats and computer players, and t
   assert.equal((await ann.send('start')).ok, false, 'not in a game');
   const created = await ann.send('create', {});
   assert.ok(created.ok);
-  assert.equal((await ann.send('create')).ok, false, 'already in a game');
+  assert.ok((await ann.send('create')).ok, 'another game beside it');
+  assert.ok((await ann.send('resume', { code: created.code })).ok, 'and back to the first');
   assert.equal(ann.state.seats.length, 7, 'a room opens as big as the game allows');
   assert.equal(ann.state.settings.instantWin, true, 'the instant win is on by default');
   assert.equal((await bob.send('settings', { instantWin: false })).ok, false, 'only the host');

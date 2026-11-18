@@ -304,28 +304,31 @@ test('somebody who leaves of their own accord can take their own place back, car
   assert.equal(host.state.phase, 'finished');
 });
 
-test('one game at a time: a second one is refused and sends you back to the one you are in', async (t) => {
+test('several games at a time: each socket looks at the one it asked for, and the others are untouched', async (t) => {
   const site = await launch(t);
   const [ann, bob, cat, dan] = await Promise.all(['ann', 'bob', 'cat', 'dan'].map((n) => site.person(n).open()));
   const a = await ann.call('create');
   for (const p of [bob, cat]) assert.equal((await p.call('join', { code: a.code })).ok, true);
   await until(() => cat.state?.players.length === 3, 'game A');
 
-  // Dan starts a second game of his own; ann cannot be in both.
+  // Dan starts a second game of his own; ann may be in both, and in a third of her own.
   const b = await dan.call('create');
   assert.equal(b.ok, true);
   assert.notEqual(b.code, a.code);
   const second = await ann.call('create');
-  assert.equal(second.ok, false, 'ann is already in a game');
-  assert.equal(second.params.code, a.code, 'and is told which');
-  await until(() => ann.state?.code === a.code, 'ann is put back in game A');
+  assert.equal(second.ok, true, 'ann may start another');
+  assert.notEqual(second.code, a.code);
   const elsewhere = await ann.call('join', { code: b.code });
-  assert.equal(elsewhere.ok, false, 'nor may she join another');
-  assert.equal(elsewhere.params.code, a.code);
+  assert.equal(elsewhere.ok, true, 'and join dan\'s besides');
+  assert.equal((await ann.call('resume', { code: a.code })).code, a.code, 'and go back to the first');
+  await until(() => ann.state?.code === a.code, 'ann back in game A');
 
-  // Her other sockets land in the same game, with or without the code.
+  // Her other sockets go where they ask.  With no code they land in one of the games she is in — the one last
+  // played in, which with three on the go is not worth a test of its own.
   const phone = await ann.twin();
-  assert.equal((await phone.call('resume')).code, a.code);
+  const landed = await phone.call('resume');
+  assert.ok([a.code, b.code, second.code].includes(landed.code), `a game of hers, not ${landed.code}`);
+  assert.equal((await phone.call('resume', { code: a.code })).code, a.code);
   const laptop = await ann.twin();
   assert.equal((await laptop.call('resume', { code: a.code })).code, a.code);
   await until(() => laptop.state?.players.length === 3, 'the laptop sees game A');

@@ -89,7 +89,7 @@ for (const seats of [2, 3, 4, 5]) {
   });
 }
 
-test('the lobby: codes, seat counts, hosting, kicking, duplicate names and one room per account', async (t) => {
+test('the lobby: codes, seat counts, hosting, kicking, duplicate names and a second room beside the first', async (t) => {
   fast();
   const site = await launch(t);
   const [ann, bob, cat, dan, eve] = await named(site, ['ann', 'bob', 'cat', 'dan', 'eve']);
@@ -118,8 +118,12 @@ test('the lobby: codes, seat counts, hosting, kicking, duplicate names and one r
   assert.equal((await cat.call('join', { code: ann.state.code })).ok, false, 'the room is full');
   assert.equal((await ann.call('settings', { size: 1 })).ok, false);
   assert.equal((await ann.call('settings', { size: 5 })).ok, true);
-  assert.equal((await ann.call('create', {})).ok, false, 'one game per account');
-  assert.equal((await bob.call('create', {})).ok, false);
+  // A second room is allowed; what matters here is that the first is untouched by it.
+  const lobby = ann.state.code;
+  assert.equal((await ann.call('create', {})).ok, true, 'several rooms per account');
+  assert.equal((await bob.call('create', {})).ok, true);
+  for (const who of [ann, bob]) assert.equal((await who.call('resume', { code: lobby })).ok, true);
+  await until(() => ann.state?.code === lobby && bob.state?.code === lobby, 'both back in the first room');
 
   assert.equal((await cat.call('join', { code: ann.state.code })).ok, true);
   assert.equal((await ann.call('settings', { size: 2 })).ok, false, 'three people are seated');
@@ -309,7 +313,7 @@ test('reconnects: a second socket, a new socket and a resume all find the same g
   await until(() => phone.state?.phase === 'windows', 'the phone to see the game');
   assert.deepEqual(phone.state.options, ann.state.options);
   assert.equal(phone.state.you, 0);
-  assert.equal((await phone.call('resume', { code: 'boss-aware-you' })).ok, false, 'one game per account, whatever code is asked for');
+  assert.equal((await phone.call('resume', { code: 'boss-aware-you' })).ok, false, 'a code that names no game is refused');
   assert.equal((await phone.call('window', { pid: phone.state.options[0].pid })).ok, true);
   await until(() => ann.state.chosen || ann.state.phase === 'playing', 'both sockets see the choice');
   ann.socket.close();

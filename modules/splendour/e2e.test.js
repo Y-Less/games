@@ -117,7 +117,7 @@ for (const seats of [2, 3, 4]) {
   });
 }
 
-test('the lobby: invite codes, settings, seats, hosting and one game per account', async (t) => {
+test('the lobby: invite codes, settings, seats, hosting and a second game beside the first', async (t) => {
   fast();
   const { person } = await launch(t);
   const [ann, bob, cat, dan, eve] = await Promise.all(['ann', 'bob', 'cat', 'dan', 'eve'].map((n) => person(n).open()));
@@ -143,8 +143,12 @@ test('the lobby: invite codes, settings, seats, hosting and one game per account
   assert.equal((await ann.call('settings', { seats: 2 })).ok, true);
   assert.equal((await ann.call('settings', { seats: 3 })).ok, true);
 
-  assert.equal((await ann.call('create')).ok, false, 'one game per account');
-  assert.equal((await bob.call('create')).ok, false);
+  // A second game is a second game, not a refusal; the first is left as it was, and both go back to it.
+  assert.equal((await ann.call('create')).ok, true, 'several games per account');
+  assert.equal((await bob.call('create')).ok, true);
+  for (const who of [ann, bob]) assert.equal((await who.call('resume', { code })).ok, true);
+  await until(() => ann.state?.code === code && bob.state?.code === code, 'both looking at the first game again');
+  assert.deepEqual(ann.state.seats.map((s) => s?.name), ['ann', 'bob', undefined], 'which is untouched');
 
   assert.equal((await ann.call('addBot')).ok, true);
   await until(() => ann.state.seats[2]?.bot, 'a computer player');

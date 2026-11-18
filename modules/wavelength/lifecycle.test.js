@@ -220,15 +220,17 @@ test('the host leaving passes the game on, in either mode', async (t) => {
   }
 });
 
-test('one game per account, and a room code only works for the room it names', async (t) => {
+test('several games per account, and a room code only works for the room it names', async (t) => {
   const site = await launch(t);
   const [ann, bob] = await Promise.all(['ann', 'bob'].map((n) => site.person(n).open()));
   const first = await ann.call('create', { mode: 'team' });
-  assert.equal((await ann.call('create', { mode: 'solo' })).ok, false, 'already in a game');
+  const mine = await ann.call('create', { mode: 'solo' });
+  assert.equal(mine.ok, true, 'a game of each kind at once');
+  assert.notEqual(mine.code, first.code);
   const other = await bob.call('create', { mode: 'solo' });
   assert.notEqual(first.code, other.code);
-  assert.equal((await bob.call('join', { code: first.code })).ok, false, 'bob is in his own game');
-  await bob.call('leave');
-  assert.ok((await bob.call('join', { code: first.code })).ok);
+  assert.equal((await bob.call('join', { code: first.code })).ok, true, 'bob is in his own game and in ann\'s');
   assert.equal(bob.state.mode, 'team');
+  assert.equal((await bob.call('resume', { code: other.code })).ok, true);
+  assert.equal(bob.state.mode, 'solo', 'and each code takes him to its own room');
 });

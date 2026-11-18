@@ -238,7 +238,7 @@ test('host transfer in the lobby, and a room vanishing while other sockets of th
   assert.equal((await ann.call('create', {})).ok, true);
 });
 
-test('leaving a game, or finishing it, frees a player; one live game per account otherwise', async (t) => {
+test('leaving a game, or finishing it, takes a player out of that one and no other', async (t) => {
   const site = await launch(t);
   const g = await gameOf(site, ['ann', 'bob']);
   const [ann, bob] = g.people;
@@ -246,27 +246,25 @@ test('leaving a game, or finishing it, frees a player; one live game per account
   const dan = await other.call('create', {});
   assert.equal(dan.ok, true);
 
-  // In a room (the lobby counts): create and join elsewhere are refused, from any of the account's sockets.
+  // In a room (the lobby counts): a second game is started in the second tab, and the first is left as it was.
   const annTab = await ann.twin();
-  const refusal = await annTab.call('create', {});
-  assert.equal(refusal.ok, false);
-  assert.equal(refusal.error, 'alreadyInGameStart');
-  assert.equal(refusal.params.code, g.code, 'the refusal names the game they are already in');
-  await until(() => annTab.state?.code === g.code, 'the second tab is attached to the existing game');
-  const refusedJoin = await ann.call('join', { code: dan.code });
-  assert.equal(refusedJoin.ok, false);
-  assert.equal(refusedJoin.error, 'alreadyInGameJoin');
-  assert.equal((await ann.call('resume', { code: dan.code })).ok, false);
+  const mine = await annTab.call('create', {});
+  assert.equal(mine.ok, true);
+  assert.notEqual(mine.code, g.code, 'a room of its own');
+  await until(() => annTab.state?.code === mine.code, 'the second tab is in the new game');
+  assert.equal((await ann.call('resume', { code: g.code })).ok, true, 'and the first tab is still in the first');
+  assert.equal(ann.state.code, g.code);
   assert.equal(other.state.players.length, 1, 'dan\'s room is untouched');
   // Joining your own game again is fine, and does not duplicate you.
   assert.equal((await ann.call('join', { code: g.code })).ok, true);
   assert.equal(ann.state.players.filter((p) => p.id === ann.id).length, 1);
 
-  // Mid-game too.
+  // Mid-game too: somebody playing may still go and start or join something else.
   assert.equal((await ann.call('start', {})).ok, true);
   await allIn(g.people, 'guessing1');
-  assert.equal((await bob.call('create', {})).ok, false);
-  assert.equal((await bob.call('join', { code: dan.code })).ok, false);
+  assert.equal((await bob.call('create', {})).ok, true);
+  assert.equal((await bob.call('join', { code: dan.code })).ok, true);
+  assert.equal((await bob.call('resume', { code: g.code })).ok, true, 'and come back to the game they are playing');
   // A newcomer joins a started game by taking a computer player's place, and there is none here to take.
   const late = await site.person('late').open();
   assert.equal((await late.call('join', { code: g.code })).error, 'gameFull');
@@ -277,7 +275,6 @@ test('leaving a game, or finishing it, frees a player; one live game per account
   assert.equal(ann.state.players.length, 2);
   assert.equal((await bob.call('join', { code: dan.code })).ok, true, 'bob is free to join another game');
   await until(() => other.state.players.length === 2, 'bob in dan\'s room');
-  assert.equal((await ann.call('join', { code: dan.code })).ok, false, 'ann is still in her game');
   // The last person leaving ends the game, which is not recorded.
   assert.equal((await ann.call('leave', {})).ok, true);
   await until(() => ann.state === null, 'ann out');

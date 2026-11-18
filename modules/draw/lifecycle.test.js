@@ -235,8 +235,11 @@ test('the host walking out mid-game: a computer player takes their place and the
     assert.equal(p.state.hostId, rest[0].state.hostId, 'and they agree who');
     assert.equal(p.state.turns, 6, 'the game is as long as it was: every pair of the four');
   }
-  assert.equal((await ann.call('create')).ok, true, 'the one who left is free to start a game of their own');
-  assert.equal((await ann.call('create')).ok, false, 'but not two at once');
+  const own = await ann.call('create');
+  assert.equal(own.ok, true, 'the one who left is free to start a game of their own');
+  const another = await ann.call('create');
+  assert.equal(another.ok, true, 'and another beside it');
+  assert.notEqual(another.code, own.code);
 });
 
 /** Adds up a list of numbers. */

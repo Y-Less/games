@@ -20,7 +20,7 @@ process.env.DRAW_PICTURES = 'test'; // bands worked out from the word: no networ
 const launch = (t, extra = {}) => launchModule(t, { id: 'draw', moduleDir: here, ...extra });
 
 /** The socket events this module handles, which the robustness test below also keeps in step. */
-const EVENTS = ['addBot', 'canvas', 'clear', 'create', 'draw', 'fillBots', 'guess', 'join', 'kick', 'leave', 'line', 'fill', 'removeBot', 'resume', 'settings', 'start', 'undo', 'voteAnswer', 'voteDrop', 'voteKick', 'word', 'again'];
+const EVENTS = ['addBot', 'canvas', 'clear', 'create', 'draw', 'fillBots', 'guess', 'join', 'kick', 'leave', 'line', 'fill', 'removeBot', 'resume', 'settings', 'start', 'undo', 'voteAnswer', 'voteDrop', 'voteKick', 'word', 'again', 'tournamentReady'];
 
 test('this test knows every socket event the server handles', () => {
   assert.deepEqual(handledSocketEvents(here), [...new Set(EVENTS)].sort());

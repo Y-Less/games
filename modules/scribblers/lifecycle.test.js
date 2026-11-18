@@ -104,7 +104,7 @@ test('one account on two sockets sees the same game, and both are sent the strok
   await until(() => guesser.state?.youGuessed === true, 'both tabs know it was guessed');
 });
 
-test('the host leaving passes the game on, and one account is in one game at a time', async (t) => {
+test('the host leaving passes the game on, and an account may start another', async (t) => {
   const site = await launchModule(t, { id: ID, moduleDir: here });
   const { people } = await gameOf(site, ['ann', 'bob', 'cat']);
   const [ann, bob, cat] = people;
@@ -114,6 +114,6 @@ test('the host leaving passes the game on, and one account is in one game at a t
   const created = await ann.call('create', { rounds: 1 });
   assert.equal(created.ok, true, 'and the one who left can start another game');
   const again = await ann.call('create', { rounds: 1 });
-  assert.equal(again.ok, false, 'but not two at once');
-  assert.equal(again.error, 'alreadyInGameStart');
+  assert.equal(again.ok, true, 'and another beside it');
+  assert.notEqual(again.code, created.code);
 });

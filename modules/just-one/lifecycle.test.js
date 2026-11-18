@@ -140,10 +140,12 @@ test('when the guesser is gone the host removes them, and a computer player gues
   assert.equal(g.host.state.turnsTotal, 8, 'and no turn is lost');
 });
 
-test('the host leaving passes the game on, and one account is in one game at a time', async (t) => {
+test('the host leaving passes the game on, and an account may have another game beside this one', async (t) => {
   const site = await launch(t);
   const g = await gameOf(site, ['ann', 'bob', 'cat']);
-  assert.equal((await g.others[0].call('create')).ok, false, 'already in a game');
+  const code = g.others[0].state.code;
+  assert.equal((await g.others[0].call('create')).ok, true, 'another game beside this one');
+  assert.equal((await g.others[0].call('resume', { code })).ok, true, 'which leaves this one as it was');
   assert.ok((await g.host.call('leave')).ok);
   await until(() => g.others.every((p) => p.state?.players.length === 2), 'two players left');
   assert.equal(g.others[0].state.hostId, g.others[0].id, 'the next person is the host');

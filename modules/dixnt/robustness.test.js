@@ -42,6 +42,7 @@ const EVENTS = {
   removeBot: ['slot'],
   start: [],
   again: [],
+  tournamentReady: ['ready'],
   hints: [],
   submitWord: ['word'],
   playCard: ['cardId'],

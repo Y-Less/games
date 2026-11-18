@@ -220,30 +220,25 @@ test('a room that disappears under connected sockets leaves them cleanly out', a
   assert.equal(await site.alive(), true);
 });
 
-test('one live game per account: creating or joining a second is refused, and leaving frees the account', async (t) => {
+test('several games per account: creating or joining another leaves the first standing', async (t) => {
   fast();
   const site = await launchModule(t, { id: 'nomination-whist', moduleDir: here });
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
   const first = (await ann.call('create', {})).code;
   const second = (await cat.call('create', {})).code;
   const again = await ann.call('create', {});
-  assert.equal(again.ok, false);
-  assert.equal(again.error, 'alreadyInGameStart');
-  assert.equal(again.params.code, first, 'the refusal names the game they are in');
-  const hop = await ann.call('join', { code: second });
-  assert.equal(hop.ok, false);
-  assert.equal(hop.error, 'alreadyInGameJoin');
-  assert.equal((await ann.call('resume', { code: second })).ok, false);
-  assert.equal(ann.state.code, first, 'still in the first game');
-  assert.equal(cat.state.seats.filter(Boolean).length, 1, 'the other game was not joined');
+  assert.equal(again.ok, true, 'a second game of their own');
+  assert.notEqual(again.code, first);
+  assert.equal((await ann.call('join', { code: second })).ok, true);
+  await until(() => cat.state.seats.filter(Boolean).length === 2, 'ann in cat\'s game');
   // Joining a game you are already in is simply a return.
   assert.equal((await ann.call('join', { code: first })).ok, true);
+  assert.equal(ann.state.code, first, 'and the first is still there to go back to');
   assert.equal((await bob.call('join', { code: first })).ok, true);
-  assert.equal((await bob.call('join', { code: second })).ok, false);
+  assert.equal((await bob.call('join', { code: second })).ok, true);
   await ann.call('leave', {});
-  await until(() => ann.state === null, 'ann out');
-  assert.equal((await ann.call('join', { code: second })).ok, true, 'free again');
-  await until(() => cat.state.seats.filter(Boolean).length === 2, 'ann in cat\'s game');
+  await until(() => ann.state === null, 'ann out of the first');
+  assert.equal((await ann.call('resume', { code: second })).ok, true, 'the other is untouched');
 });
 
 test('a finished game does not block joining another, and a finished seat can be left', async (t) => {

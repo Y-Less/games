@@ -34,6 +34,7 @@ const EVENTS = {
   end: [],
   undo: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
@@ -95,13 +96,18 @@ test('garbage for every socket event, in every phase, from members, outsiders an
 
   // The lobby, as the host (events that would end it or start the game are exercised in the other phases).
   assert.equal((await ann.call('create', { seats: 5 })).ok, true);
-  assert.equal((await bob.call('join', { code: ann.state.code })).ok, true);
+  const lobby = ann.state.code;
+  assert.equal((await bob.call('join', { code: lobby })).ok, true);
   await until(() => ann.state.seats[1], 'bob');
   // 'settings' now carries how many the game is for, so the garbage may resize the table; it is set back below.
   checked += await fuzzAll(ann, Object.keys(EVENTS), { site, secrets, skip: ['leave', 'start', 'fillBots'] });
   checked += await fuzzAll(twin, ['place', 'tool', 'end', 'window', 'settings', 'kick'], { site, secrets, who: 'twin' });
   checked += await fuzzAll(bob, Object.keys(EVENTS), { site, secrets, who: 'bob (not host)', skip: ['leave', 'start', 'fillBots', 'again'] });
   checked += await fuzzAll(outsider, ['kick', 'settings', 'start', 'window', 'place', 'tool', 'end', 'addBot', 'removeBot', 'fillBots', 'again'], { site, secrets, who: 'outsider in a lobby' });
+  // A `create` among the garbage legitimately opens a room of its own and takes that socket with it, since an
+  // account may have several games going.  Back to the lobby under test before asking what it looks like.
+  for (const who of [ann, bob, twin]) await who.call('resume', { code: lobby });
+  await until(() => ann.state?.code === lobby && bob.state?.code === lobby, 'back in the lobby under test');
   assert.equal(ann.state.phase, 'lobby', 'garbage did not start the game');
   assert.equal(bob.state.you, 1, 'garbage did not move anybody');
   assert.equal(outsider.state === null || outsider.state === undefined, true, 'an outsider is still outside');
@@ -115,6 +121,8 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   if (bob.state.phase === 'windows') {
     checked += await fuzzAll(bob, ['window', 'place', 'tool', 'end', 'settings', 'start', 'kick', 'addBot', 'removeBot', 'fillBots', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'bob in windows' });
     checked += await fuzzAll(outsider, ['window', 'place', 'tool', 'end'], { site, secrets, who: 'outsider in windows' });
+    await bob.call('resume', { code: lobby }); // a `create` among the garbage takes the socket to a room of its own
+    await until(() => bob.state?.code === lobby, 'bob back in the game under test');
     assert.equal(bob.state.phase === 'windows' || bob.state.phase === 'playing', true);
   }
   // Choose windows the normal way, then fuzz the game itself.
@@ -124,6 +132,8 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   checked += await fuzzAll(bob, ['place', 'tool', 'window', 'settings', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'bob playing' });
   checked += await fuzzAll(ann, ['place', 'tool', 'window', 'settings', 'kick', 'addBot', 'removeBot', 'fillBots', 'start', 'resume', 'join', 'create', 'again'], { site, secrets, who: 'ann playing' });
   assert.ok(checked > 3000, `${checked} replies checked`);
+  for (const who of [ann, bob]) await who.call('resume', { code: lobby }); // back from any room the garbage opened
+  await until(() => ann.state?.code === lobby && bob.state?.code === lobby, 'back in the game under test');
   assert.equal(ann.state.phase === 'playing' || ann.state.phase === 'finished', true);
   assert.equal(ann.state.settings.badPrivate, false);
   assert.equal(ann.state.size, 5);

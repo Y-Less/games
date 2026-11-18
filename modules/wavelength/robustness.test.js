@@ -31,6 +31,7 @@ const EVENTS = {
   lock: [],
   ready: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
@@ -49,10 +50,17 @@ const SCENES = [
 /** Every state a person was sent is well formed, and only the psychic ever saw the target before the reveal. */
 function checkStates(person) {
   let turn = 0;
+  let code = null;
   for (const s of person.states) {
     if (!s) {
       turn = 0; // out of a game: the next one starts again
       continue;
+    }
+    // A socket may move between rooms now that an account may have several games: the turn only moves forward
+    // within one room.
+    if (s.code !== code) {
+      code = s.code;
+      turn = 0;
     }
     if (s.phase === 'lobby') turn = 0;
     assert.ok(s.turn >= turn, `${person.name}: the turn only moves forward`);

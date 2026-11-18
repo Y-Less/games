@@ -400,12 +400,9 @@ export function createRoomServer(ctx, options) {
     on('resume', ({ code }) => life.enter(socket, code));
     on('join', ({ code }) => (typeof code === 'string' && code.trim() ? life.enter(socket, code) : { ok: false, error: 'typeInviteCode' }));
 
+    // Starting a game does not end the ones already going: somebody may be playing several at once, here and
+    // elsewhere on the site (see `enter` in shared/roomLife.js).
     on('create', (payload) => {
-      const mine = life.liveRoomOf(userId);
-      if (mine) {
-        life.attach(socket, mine);
-        return { ok: false, error: 'alreadyInGameStart', params: { code: mine.code } };
-      }
       let room;
       try {
         room = game.createRoom({
@@ -421,7 +418,6 @@ export function createRoomServer(ctx, options) {
         ctx.log('create refused:', error.message); // a rules bug would surface here too, so keep a trace of it
         return refusalReply(error); // a refusal the rules threw keeps its code; anything else is a bug, and is a plain server error
       }
-      life.leaveAllRooms(userId);
       life.keep(room);
       life.attach(socket, room);
       return { ok: true, code: room.code };
@@ -495,7 +491,9 @@ export function createRoomServer(ctx, options) {
     // Between rounds a tournament waits for everybody still in it to say they are ready, and opens the round itself
     // once the last of them has (shared/tournamentRoom.js).  `act` is no use: it asks the game for a seat, and a
     // tournament's people are not sitting at a table of it.
-    on('ready', (payload) => {
+    // Named for the tournament rather than just `ready`: Cribbage has an event of its own by that name (the show
+    // moves on when everybody is ready), and two handlers on one event would both run.
+    on('tournamentReady', (payload) => {
       const room = roomOfSocket();
       if (!room) return { ok: false, error: 'notInAnyGame' };
       // Said from the table they have just finished as readily as from the tournament itself: that is where somebody

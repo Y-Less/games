@@ -29,6 +29,7 @@ const EVENTS = {
   best: ['n'],
   ready: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
@@ -39,10 +40,17 @@ const PHASES = ['lobby', 'clues', 'guessing', 'choosing', 'reveal', 'finished'];
 /** Every state a person was sent is well formed, and nobody saw what they should not have. */
 function checkStates(person) {
   let turn = 0;
+  let code = null;
   for (const s of person.states) {
     if (!s) {
       turn = 0;
       continue;
+    }
+    // A socket may move between rooms now that an account may have several games: the turn only moves forward
+    // within one room.
+    if (s.code !== code) {
+      code = s.code;
+      turn = 0;
     }
     if (s.phase === 'lobby') turn = 0;
     assert.ok(s.turn >= turn, `${person.name}: the turn only moves forward`);

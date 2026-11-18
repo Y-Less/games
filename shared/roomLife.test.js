@@ -195,16 +195,28 @@ test('a finished game is not resumed without its code: coming back from the menu
   assert.deepEqual(ann.states(), [null]);
 });
 
-test('a person with a game under way cannot join another: they are told which, and shown their own', (t) => {
+test('a person with a game under way may join another, and is still in the first', (t) => {
   const { life, room, socket, calls } = world(t);
-  room('a-b-c', [1, 2], { phase: 'playing' });
+  const first = room('a-b-c', [1, 2], { phase: 'playing' });
   const other = room('d-e-f', [3]);
   const ann = socket(1);
-  assert.deepEqual(life.enter(ann, 'd-e-f'), { ok: false, error: 'alreadyInGameJoin', params: { code: 'a-b-c' } });
-  assert.equal(ann.data.code, 'a-b-c');
-  assert.equal(ann.states().at(-1).code, 'a-b-c');
-  assert.deepEqual(other.players.map((p) => p.id), [3], 'and they were not added to the other');
-  assert.deepEqual(calls.filter((call) => call.what === 'addHuman'), []);
+  assert.deepEqual(life.enter(ann, 'd-e-f'), { ok: true, code: 'd-e-f' });
+  assert.equal(ann.data.code, 'd-e-f', 'the socket is looking at the new one');
+  assert.deepEqual(other.players.map((p) => p.id), [3, 1]);
+  assert.deepEqual(first.players.map((p) => p.id), [1, 2], 'and the game they were playing is untouched');
+  assert.deepEqual(calls.filter((call) => call.what === 'removeHuman'), [], 'nobody was taken out of anything');
+});
+
+test('with several games on the go, resuming without a code gives the one last played in', (t) => {
+  const { life, room, socket, now } = world(t);
+  const older = room('a-b-c', [1, 2], { phase: 'playing' });
+  const newer = room('d-e-f', [1, 3], { phase: 'playing' });
+  older.updatedAt = now() - 1000;
+  newer.updatedAt = now();
+  const ann = socket(1);
+  assert.deepEqual(life.enter(ann, undefined), { ok: true, code: 'd-e-f' });
+  // And either of them by name, whichever was last: an invite code is the way back to a particular game.
+  assert.deepEqual(life.enter(socket(1), 'a-b-c'), { ok: true, code: 'a-b-c' });
 });
 
 test('a room the rules will not let somebody into answers with the rules’ own refusal, and shows them the menu', (t) => {
@@ -508,18 +520,16 @@ test('the last person leaving discards the room: its code is free again, and it 
   assert.equal(restart().taken('a-b-c'), false);
 });
 
-test('leaving every room takes a person out of each one they are in, except the one they are on their way into', (t) => {
+test('leaving one room of several leaves the others alone', (t) => {
   const { life, room, calls } = world(t);
-  const lobby = room('a-b-c', [1, 2]);
+  const left = room('a-b-c', [1, 2]);
   const kept = room('d-e-f', [1, 3]);
   const untouched = room('g-h-i', [2, 3]);
-  life.leaveAllRooms(1, kept);
-  assert.deepEqual(lobby.players.map((p) => p.id), [2]);
-  assert.deepEqual(kept.players.map((p) => p.id), [1, 3]);
+  life.leaveRoom(left, 1);
+  assert.deepEqual(left.players.map((p) => p.id), [2]);
+  assert.deepEqual(kept.players.map((p) => p.id), [1, 3], 'their other game is still theirs');
   assert.deepEqual(untouched.players.map((p) => p.id), [2, 3]);
   assert.deepEqual(calls.filter((call) => call.what === 'removeHuman').map((call) => call.code), ['a-b-c']);
-  life.leaveAllRooms(1);
-  assert.deepEqual(kept.players.map((p) => p.id), [3], 'with no exception, every one');
 });
 
 test('somebody voted out is replaced like anybody who leaves, sent to the menu, and barred so the invitation does not let them back', (t) => {
@@ -575,7 +585,7 @@ test('a discarded room sends everybody still looking at it back to the menu, and
 
 // ---- at random ----
 
-test('fuzz: however people come, go, and close their tabs, nobody is in two games at once and no socket is shown a room its person is not in', async (t) => {
+test('fuzz: however people come, go, and close their tabs, every socket is shown a room its person is really in', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] }); // nothing is left to fire on its own: every step is the test's
   for (const seed of [41, 42, 43, 0xa11ce]) {
     const rng = seeded(seed);
@@ -652,9 +662,12 @@ test('fuzz: however people come, go, and close their tabs, nobody is in two game
 
         assert.deepEqual(problems, [], where);
         for (const user of users) {
+          // Several games at once are allowed; what is promised is that "my game", asked for without a code, is
+          // always one of the ones they are really in, and nothing at all only when there are none.
           const live = [...it.life.rooms.values()].filter((room) => it.game.isLive(room) && it.game.hasPlayer(room, user));
-          assert.ok(live.length <= 1, `${where}: user ${user} is in ${live.map((room) => room.code).join(' and ')} at once`);
-          assert.equal(it.life.liveRoomOf(user), live[0], `${where}: the game user ${user} has under way`);
+          const mine = it.life.liveRoomOf(user);
+          if (!live.length) assert.equal(mine, undefined, `${where}: user ${user} has no game but was given ${mine?.code}`);
+          else assert.ok(live.includes(mine), `${where}: user ${user} is in ${live.map((room) => room.code).join(' and ')} but was given ${mine?.code}`);
         }
         for (const open of sockets) {
           const user = open.data.user.id;

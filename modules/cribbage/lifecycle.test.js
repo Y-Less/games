@@ -217,28 +217,23 @@ test('a room that disappears under connected sockets leaves them cleanly out', a
   assert.equal(await site.alive(), true);
 });
 
-test('one live game per account: a second create or join is refused, and leaving frees the account', async (t) => {
+test('several games per account: a second create or join is allowed, and leaving one keeps the rest', async (t) => {
   const site = await launchModule(t, { id: 'cribbage', moduleDir: here });
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
   const first = (await ann.call('create', {})).code;
   const second = (await cat.call('create', {})).code;
   const again = await ann.call('create', {});
-  assert.equal(again.ok, false);
-  assert.equal(again.error, 'alreadyInGameStart');
-  assert.equal(again.params.code, first, 'the refusal names the game they are already in');
-  const hop = await ann.call('join', { code: second });
-  assert.equal(hop.ok, false);
-  assert.equal(hop.error, 'alreadyInGameJoin');
-  assert.equal((await ann.call('resume', { code: second })).ok, false);
-  assert.equal(ann.state.code, first);
-  assert.equal(cat.state.seats.filter(Boolean).length, 1);
-  assert.equal((await ann.call('join', { code: first })).ok, true);
-  assert.equal((await bob.call('join', { code: first })).ok, true);
-  assert.equal((await bob.call('join', { code: second })).ok, false);
-  await ann.call('leave', {});
-  await until(() => ann.state === null, 'ann out');
+  assert.equal(again.ok, true, 'a game of their own apiece');
+  assert.notEqual(again.code, first);
   assert.equal((await ann.call('join', { code: second })).ok, true);
+  assert.equal(ann.state.code, second);
   await until(() => cat.state.seats.filter(Boolean).length === 2, 'ann in cat\'s game');
+  assert.equal((await ann.call('join', { code: first })).ok, true, 'and back to their own');
+  assert.equal((await bob.call('join', { code: first })).ok, true);
+  assert.equal((await bob.call('join', { code: second })).ok, true);
+  await ann.call('leave', {});
+  await until(() => ann.state === null, 'ann out of the one they were looking at');
+  assert.equal((await ann.call('resume', { code: second })).ok, true, 'the others are still theirs');
 });
 
 test('a finished game does not block joining another one', async (t) => {

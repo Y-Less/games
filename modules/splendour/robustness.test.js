@@ -35,6 +35,7 @@ const EVENTS = {
   noble: ['noble'],
   pass: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
@@ -183,8 +184,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(bob, 'kick', { slot: 's0' }, /hostOnly|settingsBeforeStart/);
   await refused(bob, 'again', {}, /hostOnly|notOver/);
   await refused(ann, 'again', {}, 'notOver');
-  await refused(mover, 'join', { code: 'boss-aware-you' }, 'alreadyInGameJoin');
-  await refused(mover, 'create', {}, 'alreadyInGameStart');
+  await refused(mover, 'join', { code: 'boss-aware-you' }, 'noGameWithCode');
   await sleep(20);
   assert.equal(ann.state.log.length, logBefore, 'nothing changed');
   assert.deepEqual(ann.state.supply, supply);

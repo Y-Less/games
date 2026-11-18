@@ -46,6 +46,7 @@ const EVENTS = {
   settings: ['rounds', 'drawTime', 'wordChoices'],
   start: [],
   again: [],
+  tournamentReady: ['ready'],
   word: ['n'],
   addWord: ['text'],
   guess: ['text'],

@@ -44,6 +44,7 @@ const EVENTS = {
   start: [],
   answer: ['choice', 'x', 'y'],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 /** Extra payloads worth trying on each event beyond the standard battery. */

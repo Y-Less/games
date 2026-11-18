@@ -120,6 +120,7 @@ const EVENTS = {
   draw: [],
   next: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
@@ -183,7 +184,7 @@ test('garbage for every socket event, in every phase, from members, outsiders an
   assertNoPollution(before);
 });
 
-test('kicking in the lobby, one live room per account, joining by code, and a room that does not exist', async (t) => {
+test('kicking in the lobby, a second live room per account, joining by code, and a room that does not exist', async (t) => {
   fast();
   const site = await launch(t);
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
@@ -191,7 +192,8 @@ test('kicking in the lobby, one live room per account, joining by code, and a ro
   assert.equal((await bob.call('join', { code })).ok, true);
   assert.equal((await cat.call('join', { code })).ok, true);
   assert.equal((await cat.call('join', { code: 'no-such-room' })).ok, false);
-  assert.equal((await ann.call('create', {})).ok, false, 'already in a live game');
+  assert.equal((await ann.call('create', {})).ok, true, 'a second live game is allowed');
+  assert.equal((await ann.call('resume', { code })).ok, true, 'and the first is still hers');
   assert.equal((await bob.call('kick', { slot: 's2' })).ok, false, 'only the host kicks');
   assert.equal((await ann.call('kick', { slot: 's2' })).ok, true);
   await until(() => cat.state === null, 'cat is told');

@@ -29,6 +29,7 @@ const EVENTS = {
   play: ['card'],
   ready: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
@@ -220,8 +221,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(ann, 'kick', { slot: 's0' }, 'nobodyElseInSeat');
   await refused(ann, 'kick', { slot: 'x' }, 'nobodyElseInSeat');
   await refused(bob, 'kick', { slot: 's0' }, 'hostOnly');
-  await refused(ann, 'join', { code: 'boss-aware-you' }, 'alreadyInGameJoin');
-  await refused(ann, 'create', {}, 'alreadyInGameStart');
+  await refused(ann, 'join', { code: 'boss-aware-you' }, 'noGameWithCode');
   assert.deepEqual(ann.state.hand, annHand, 'the hand is untouched');
   assert.equal((await ann.call('discard', { cards: annHand.slice(0, 2) })).ok, true);
   await refused(ann, 'discard', { cards: annHand.slice(2, 4) }, 'alreadyDiscarded');

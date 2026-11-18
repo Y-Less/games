@@ -535,8 +535,6 @@
     "seatTaken": "その席は埋まっています。",
     "noBotInSeat": "その席にコンピュータープレイヤーはいません。",
     "notAnInviteCode": "それは招待コードではありません。boss-aware-you のような形です。",
-    "alreadyInGameJoin": "すでにゲーム {code} に参加しています。別のゲームに入るには退出してください。",
-    "alreadyInGameStart": "すでにゲーム {code} に参加しています。別のゲームを始めるには退出してください。",
     "thatGameFinished": "そのゲームは終わっています。",
     "typeInviteCode": "招待コードを入力してください。",
     "notAColour": "それは色ではありません。",

@@ -183,20 +183,22 @@ test('a room that disappears under connected sockets leaves them cleanly out', a
   assert.equal((await bob.call('join', { code })).ok, false, 'the room is gone');
 });
 
-test('one live game per account: creating or joining a second is refused, and leaving frees the account', async (t) => {
+test('several games per account: a second create or join is allowed, and each is reached by its own code', async (t) => {
   fast();
   const site = await launch(t);
   const [ann, bob, cat] = await Promise.all(['ann', 'bob', 'cat'].map((n) => site.person(n).open()));
   const first = (await ann.call('create', { seats: 3 })).code;
   const other = (await cat.call('create', { seats: 3 })).code;
-  assert.equal((await ann.call('create', {})).ok, false);
-  assert.equal((await ann.call('join', { code: other })).ok, false);
-  assert.equal(ann.state.code, first, 'still in the first game');
+  assert.equal((await ann.call('create', {})).ok, true);
+  assert.equal((await ann.call('join', { code: other })).ok, true);
+  assert.equal(ann.state.code, other, 'looking at the one they asked for');
+  assert.equal((await ann.call('resume', { code: first })).ok, true);
+  assert.equal(ann.state.code, first, 'and back to the first whenever they like');
   assert.equal((await bob.call('join', { code: first })).ok, true);
-  assert.equal((await bob.call('join', { code: other })).ok, false);
-  assert.equal((await bob.call('leave')).ok, true);
   assert.equal((await bob.call('join', { code: other })).ok, true);
-  assert.equal(bob.state.code, other);
+  assert.equal((await bob.call('leave')).ok, true, 'leaving one of them');
+  assert.equal((await bob.call('resume', { code: first })).ok, true, 'leaves the other');
+  assert.equal(bob.state.code, first);
 });
 
 test('kicking over sockets: every socket of the person is sent out, and the code is no way back', async (t) => {

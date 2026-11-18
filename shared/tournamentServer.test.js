@@ -154,7 +154,7 @@ async function readyUp(world, code, people = null) {
   const waiting = people ?? (seen(world, [...world.sockets.keys()][0])?.notReady ?? []).map((person) => person.id);
   for (const id of waiting) {
     await world.who(id).ask('join', { code });
-    await world.who(id).ask('ready');
+    await world.who(id).ask('tournamentReady');
   }
   await settled();
 }
@@ -237,26 +237,26 @@ test('a round opens only when the last person is ready, and somebody can change 
 
   for (const id of [1, 2, 3]) {
     await site.who(id).ask('join', { code });
-    assert.deepEqual(await site.who(id).ask('ready'), { ok: true });
+    assert.deepEqual(await site.who(id).ask('tournamentReady'), { ok: true });
   }
   await settled();
   assert.equal(seen(site, 1).readyNow, 3);
   assert.equal(seen(site, 1).readyOf, 4);
   assert.equal(tables(site, code).filter((table) => !first.includes(table.code)).length, 0, 'three of four is not everybody');
   // Said in error, and taken back: the round is no nearer starting.
-  assert.deepEqual(await site.who(3).ask('ready', { ready: false }), { ok: true });
+  assert.deepEqual(await site.who(3).ask('tournamentReady', { ready: false }), { ok: true });
   await settled();
   assert.equal(seen(site, 1).readyNow, 2);
   assert.equal(seen(site, 1).youReady, true, 'and saying so is each person for themselves');
 
   for (const id of [3, 4]) {
     await site.who(id).ask('join', { code });
-    await site.who(id).ask('ready');
+    await site.who(id).ask('tournamentReady');
   }
   await settled();
   assert.equal(tables(site, code).filter((table) => !first.includes(table.code)).length, 2);
   // There is nothing to be ready for while the round is being played.
-  assert.deepEqual(await site.who(1).ask('ready'), { ok: false, error: 'tournamentNotWaiting' });
+  assert.deepEqual(await site.who(1).ask('tournamentReady'), { ok: false, error: 'tournamentNotWaiting' });
 });
 
 test('a tournament waiting between rounds is picked up again after a restart', async (t) => {
@@ -266,7 +266,7 @@ test('a tournament waiting between rounds is picked up again after a restart', a
   await finishTables(site, code);
   for (const id of [1, 2]) {
     await site.who(id).ask('join', { code });
-    await site.who(id).ask('ready');
+    await site.who(id).ask('tournamentReady');
   }
   await settled();
 
@@ -279,7 +279,7 @@ test('a tournament waiting between rounds is picked up again after a restart', a
 
   for (const id of [3, 4]) {
     await site.who(id).ask('join', { code });
-    await site.who(id).ask('ready');
+    await site.who(id).ask('tournamentReady');
   }
   await settled();
   assert.equal(tables(site, code).length, 4, 'and the round opens when the last of them says so');
@@ -291,7 +291,7 @@ test('the host puts out somebody who never comes back, and the round gets going'
   await finishTables(site, code);
   for (const id of [1, 2, 3]) {
     await site.who(id).ask('join', { code });
-    await site.who(id).ask('ready');
+    await site.who(id).ask('tournamentReady');
   }
   await settled();
   assert.deepEqual(seen(site, 1).notReady.map((person) => person.id), [4], 'everybody but one');
@@ -319,7 +319,7 @@ test('a person who leaves while a round is waiting is not waited for', async (t)
   assert.equal(seen(site, 1).notReady.some((person) => person.id === 4), false);
   for (const id of [1, 2, 3]) {
     await site.who(id).ask('join', { code });
-    await site.who(id).ask('ready');
+    await site.who(id).ask('tournamentReady');
   }
   await settled();
   assert.equal(seen(site, 1).waiting, false, 'and the three of them are everybody');
@@ -339,7 +339,7 @@ test('a person reading the scores of the table they have just finished is told t
   assert.equal(state.tournament.youReady, false);
 
   // Said from the table they are sitting at, without going back to the tournament first.
-  assert.deepEqual(await site.who(1).ask('ready'), { ok: true }, 'from where they are sitting');
+  assert.deepEqual(await site.who(1).ask('tournamentReady'), { ok: true }, 'from where they are sitting');
   assert.equal(site.who(1).state().tournament.youReady, true, 'and they are told so where they are sitting');
   await readyUp(site, code);
   const after = site.who(1).state();

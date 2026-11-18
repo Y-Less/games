@@ -158,8 +158,12 @@ test('the lobby: codes, seat counts, hosting, kicking, the free wall option and 
   assert.equal((await cat.call('join', { code: ann.state.code })).ok, false, 'the room is full');
   assert.equal((await ann.call('settings', { size: 1 })).ok, false);
   assert.equal((await ann.call('settings', { size: 5 })).ok, true);
-  assert.equal((await ann.call('create', {})).ok, false, 'one game per account');
-  assert.equal((await bob.call('create', {})).ok, false);
+  // A second game is allowed; what matters here is that the first is untouched by it.
+  const lobby = ann.state.code;
+  assert.equal((await ann.call('create', {})).ok, true, 'several games per account');
+  assert.equal((await bob.call('create', {})).ok, true);
+  for (const who of [ann, bob]) assert.equal((await who.call('resume', { code: lobby })).ok, true);
+  await until(() => ann.state?.code === lobby && bob.state?.code === lobby, 'both back in the first game');
 
   assert.equal((await cat.call('join', { code: ann.state.code })).ok, true);
   assert.equal((await ann.call('settings', { size: 2 })).ok, false, 'three people are seated');
@@ -260,7 +264,8 @@ test('reconnects: a second socket, a new socket and a resume all find the same g
   assert.equal((await phone.call('resume')).ok, true);
   await until(() => phone.state?.phase === 'playing', 'the phone to see the game');
   assert.equal(phone.state.you, ann.state.seats.findIndex((s) => !s.bot));
-  assert.equal((await phone.call('resume', { code: 'boss-aware-you' })).ok, false, 'one game per account, whatever code is asked for');
+  assert.equal((await phone.call('resume', { code: 'boss-aware-you' })).ok, false, 'a code that names no game is refused');
+  assert.equal(phone.state?.phase, 'playing', 'and leaves the phone looking at the game it was in');
   ann.socket.close();
   await sleep(50);
   assert.equal(phone.state.seats[phone.state.you].online, true, 'still online through the phone');

@@ -30,6 +30,7 @@ const EVENTS = {
   fillBots: ['count'],
   removeBot: ['slot'],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {

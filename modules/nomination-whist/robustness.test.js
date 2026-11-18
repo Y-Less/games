@@ -33,6 +33,7 @@ const EVENTS = {
   play: ['card'],
   next: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
@@ -227,8 +228,7 @@ test('specific malformed and out-of-turn actions are refused with a clear messag
   await refused(mover, 'addBot', {}, /settingsBeforeStart|hostOnly/);
   await refused(mover, 'removeBot', { slot: 's2' }, /settingsBeforeStart|hostOnly/);
   await refused(bob, 'kick', { slot: 's0' }, /hostOnly|settingsBeforeStart/);
-  await refused(mover, 'join', { code: 'boss-aware-you' }, 'alreadyInGameJoin');
-  await refused(mover, 'create', {}, 'alreadyInGameStart');
+  await refused(mover, 'join', { code: 'boss-aware-you' }, 'noGameWithCode');
   assert.equal(mover.state.seats[mover.state.you].bid, null, 'nothing was nominated');
   // The dealer cannot make the total equal the tricks: play to the dealer's turn if a person is the dealer.
   assert.equal((await mover.call('nominate', { number: mover.state.forbidden === 0 ? 1 : 0 })).ok, true, 'a proper nomination works');

@@ -95,7 +95,8 @@ test('a whole game: create, join by code, start, two rounds a turn, reveal, fini
   const created = await ann.send('create', { rounds: 1 });
   assert.ok(created.ok);
   assert.match(created.code, /^[a-z]+-[a-z]+-[a-z]+$/);
-  assert.equal((await ann.send('create')).ok, false, 'already in a game');
+  assert.ok((await ann.send('create')).ok, 'another game beside it');
+  assert.ok((await ann.send('resume', { code: created.code })).ok, 'and back to the first');
   const lobby = await ann.until((s) => s?.phase === 'lobby');
   assert.equal(lobby.hostId, accounts[0].id);
   assert.deepEqual(lobby.players.map((p) => p.name), ['ann']);

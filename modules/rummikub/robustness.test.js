@@ -43,6 +43,7 @@ const EVENTS = {
   draw: [],
   next: [],
   again: [],
+  tournamentReady: ['ready'],
 };
 
 test('this test knows every socket event the server handles', () => {
