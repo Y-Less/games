@@ -62,6 +62,7 @@ function world(t, people = [1, 2, 3, 4]) {
   const logs = [];
   const recorded = [];
   let next = 0;
+  let server;
   const ctx = {
     io: new EventEmitter(),
     dataDir,
@@ -70,19 +71,32 @@ function world(t, people = [1, 2, 3, 4]) {
     codes: { normalise: (raw) => (typeof raw === 'string' ? raw.trim().toLowerCase() : ''), generate: () => `room-${++next}` },
     stats: { record: (result) => recorded.push(result) },
   };
-  const server = createRoomServer(ctx, { game: standIn, pickSettings: (payload) => (payload?.length === undefined ? {} : { length: payload.length }), members: (room) => room.players, layout: rosterLayout, nextAction: () => null, registerEvents({ on, act }) {
-    on('endIt', () => act((room) => {
-      room.phase = 'finished';
-      return { ok: true };
-    }));
-  } });
+  /** The site's server half, over the same folder each time it is started. */
+  const open = () =>
+    createRoomServer(ctx, {
+      game: standIn,
+      pickSettings: (payload) => (payload?.length === undefined ? {} : { length: payload.length }),
+      members: (room) => room.players,
+      layout: rosterLayout,
+      nextAction: () => null,
+      registerEvents({ on, act }) {
+        on('endIt', () =>
+          act((room) => {
+            room.phase = 'finished';
+            return { ok: true };
+          }),
+        );
+      },
+    });
+  server = open();
   t.after(() => {
     server.dispose();
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
 
   const sockets = new Map();
-  for (const id of people) {
+  /** Somebody signed in, with a socket that keeps every view it is sent. */
+  const connect = (id) => {
     const socket = new EventEmitter();
     socket.data = { user: { id, name: `P${id}` } };
     socket.states = [];
@@ -92,8 +106,22 @@ function world(t, people = [1, 2, 3, 4]) {
     socket.state = () => socket.states.at(-1);
     ctx.io.emit('connection', socket);
     sockets.set(id, socket);
-  }
-  return { server, logs, recorded, sockets, who: (id) => sockets.get(id), rooms: () => server.rooms };
+    return socket;
+  };
+  for (const id of people) connect(id);
+  return {
+    logs,
+    recorded,
+    sockets,
+    who: (id) => sockets.get(id),
+    rooms: () => server.rooms,
+    /** Stops the site and starts it again over the same folder, as a restart does; everybody connects afresh. */
+    restart: () => {
+      server.dispose();
+      server = open();
+      for (const id of [...sockets.keys()]) connect(id);
+    },
+  };
 }
 
 /** A tournament of these people, set up and started: the host makes the room and the rest join by code. */
@@ -256,10 +284,43 @@ test('a tournament lobby is the tournament, not the game: no computer players, a
   await site.who(1).ask('settings', { tournament: { on: true } });
   assert.deepEqual(await site.who(1).ask('addBot'), { ok: false, error: 'tournamentNoBots' });
   assert.deepEqual(await site.who(1).ask('fillBots', { count: 4 }), { ok: false, error: 'tournamentNoBots' });
+  // The game's own settings are the ones chosen before the tournament was switched on, since its lobby is not on
+  // screen afterwards: changing them means switching the tournament off first.
+  assert.deepEqual(await site.who(1).ask('settings', { length: 5 }), { ok: false, error: 'tournamentSettingsFirst' });
   assert.deepEqual(await site.who(1).ask('start'), { ok: true });
   await settled();
   // The game's own events belong to the tables, not to the room the tournament is run from.
   assert.deepEqual(await site.who(1).ask('endIt'), { ok: false, error: 'tournamentRunning' });
+});
+
+test('a tournament that was half way through a round carries on after a restart', async (t) => {
+  // Nothing about an evening is held in memory: the schedule, the round, the tables and the standings are all on the
+  // room, and the opening and the taking in are what the server owes it rather than something a message does.  So a
+  // site that stops between the two picks up where it left off.
+  const site = world(t);
+  const code = await tournament(site);
+  const first = tables(site, code).map((table) => table.code);
+  assert.equal(first.length, 2);
+
+  site.restart();
+  await settled();
+  assert.deepEqual(tables(site, code).map((table) => table.code).sort(), [...first].sort(), 'the same tables, not a fresh set');
+
+  await finishTables(site, code);
+  await site.who(1).ask('join', { code });
+  assert.equal(site.who(1).state().tournament.round, 2, 'and the round was taken in as usual');
+});
+
+test('a tournament whose first round was never opened opens it when the site comes back', async (t) => {
+  const site = world(t);
+  const made = await site.who(1).ask('create');
+  for (const id of [2, 3, 4]) await site.who(id).ask('join', { code: made.code });
+  await site.who(1).ask('settings', { tournament: { on: true } });
+  // Started, and stopped before the server had opened anything: the tables are owed, not lost.
+  assert.deepEqual(await site.who(1).ask('start'), { ok: true });
+  site.restart();
+  await settled();
+  assert.equal(tables(site, made.code).length, 2);
 });
 
 test('a tournament of one person is refused, and the lobby is left as it was', async (t) => {

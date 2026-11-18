@@ -566,6 +566,7 @@
     "tournamentTooBig": "That would be more than {max} games. Use larger games, or fewer people.",
     "tournamentRunning": "The games of this tournament are played at its tables, not here.",
     "tournamentNoAgain": "A tournament is played once. Start a new room for another.",
+    "tournamentSettingsFirst": "A tournament's games use the settings chosen before it was switched on. Switch it off to change them.",
     "notYourTable": "That game is for the people drawn to play it.",
     "notATournament": "This room is not a tournament."
   },

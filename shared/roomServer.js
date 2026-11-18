@@ -325,14 +325,17 @@ export function createRoomServer(ctx, options) {
    */
   function changeSettings(room, userId, payload) {
     const { tournament: asked, ...rest } = payload;
-    if (asked === undefined) return game.setSettings(room, userId, pickSettings(rest));
+    // The game's own settings are the ones chosen before tournament mode was switched on: its lobby is not on screen
+    // afterwards, and every table is dealt with what it said then.  Switching the tournament off brings them back.
+    const gameSettings = (mine) => (tournaments.settingOf(room) ? { ok: false, error: 'tournamentSettingsFirst' } : game.setSettings(room, userId, mine));
+    if (asked === undefined) return gameSettings(pickSettings(rest));
     return allOrNothing(room, () => {
       const set = tournaments.setTable(room, userId, asked);
       if (!set.ok) return set;
       const mine = pickSettings(rest);
       // A message about nothing but the tournament is not handed to the game at all: a game with no settings of its
       // own refuses an empty one, and rightly.
-      return Object.keys(mine).length ? game.setSettings(room, userId, mine) : { ok: true };
+      return Object.keys(mine).length ? gameSettings(mine) : { ok: true };
     });
   }
 
@@ -441,6 +444,8 @@ export function createRoomServer(ctx, options) {
       if (!room) return { ok: false, error: 'notInAnyGame' };
       const outcome = game.kick(room, userId, payload.slot, rng, now());
       if (!outcome.ok) return refused(outcome);
+      // Somebody put out of a tournament keeps the games they played, and is taken out of the ones still to come.
+      tournaments.withdraw(room, outcome.userId);
       life.detach(outcome.userId, room.code);
       life.changed(room);
       return { ok: true };

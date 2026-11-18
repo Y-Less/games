@@ -474,7 +474,9 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
       last: (played.last ?? []).map((table) => tableView(table, played, userId)),
       // Where this person should be: the table they are drawn to play at this round, once it is open.
       yourTable: mine?.code ?? null,
-      tablesInAll: played.rounds ? played.rounds.flat().length : 0,
+      // How many games the whole evening comes to.  Before it starts there is no schedule to count, so it is worked
+      // out from the people who have come — which is the number the lobby shows while they are still arriving.
+      tablesInAll: played.rounds ? played.rounds.flat().length : tableCount(entrants(room).length, played.humans),
       limits: { min: playable.min, max: playable.max, maxEntrants: MAX_ENTRANTS },
     };
   }

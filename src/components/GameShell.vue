@@ -70,8 +70,19 @@ const { state, loaded, busy, notice, connected, initialCode, send } = useGameSoc
 const tournament = computed(() => state.value?.tournament ?? null);
 /** Is this the room a tournament is run from (rather than one of its games, or an ordinary room)? */
 const running = computed(() => isTournament(state.value));
-/** Only the host sets a tournament up.  A game names its host in its own way, so both are allowed for. */
-const isHost = computed(() => (state.value?.isHost ?? (state.value?.hostId !== undefined ? state.value.hostId === state.value.you : state.value?.hostSeat === state.value?.you)));
+/**
+ * Only the host sets a tournament up.  A game says who its host is in one of three ways — plainly, by account id, or
+ * by seat — and a view that says none of them is nobody's: the server refuses either way, but a button nobody can
+ * use should not be offered.
+ */
+const isHost = computed(() => {
+  const view = state.value;
+  if (!view) return false;
+  if (typeof view.isHost === 'boolean') return view.isHost;
+  if (view.you === undefined) return false;
+  if (view.hostId !== undefined) return view.hostId === view.you;
+  return view.hostSeat !== undefined && view.hostSeat === view.you;
+});
 
 defineExpose({ state, send });
 </script>

@@ -84,6 +84,8 @@ for (const spec of GAMES) {
     fill(spec, room, MAX_ENTRANTS);
     const view = rules.viewFor(room, MAX_ENTRANTS);
     assert.equal(view.tournament.entrants.length, MAX_ENTRANTS, 'everybody is in it');
+    // How long the evening would be, before anybody starts it: every combination of the people who have come.
+    assert.equal(view.tournament.tablesInAll, (MAX_ENTRANTS * (MAX_ENTRANTS - 1)) / 2, 'sixteen people in pairs is a hundred and twenty games');
     assert.deepEqual([view.code, view.phase, view.you, view.isHost], [room.code, 'lobby', MAX_ENTRANTS, false]);
     // The game is not asked to draw this room — its hands and tallies are as long as its own table, and this is
     // sixteen people — but it must still cope with the rules a lobby runs while they are all in it.

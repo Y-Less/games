@@ -253,6 +253,12 @@ describe('GameShell', () => {
     await state({ code: 'a-b-c', phase: 'lobby', you: 1, hostId: 1, tournament: tournament({ on: false }) });
     expect(wrapper.find('.lobby').exists()).toBe(true);
     expect(wrapper.findComponent(TournamentSetup).props('isHost')).toBe(true);
+    // A game says who its host is in one of three ways, and a view that says none of them is nobody's.
+    await state({ code: 'a-b-c', phase: 'lobby', you: 2, hostSeat: 0, tournament: tournament({ on: false }) });
+    expect(wrapper.findComponent(TournamentSetup).props('isHost')).toBe(false);
+    await state({ code: 'a-b-c', phase: 'lobby', tournament: tournament({ on: false }) });
+    expect(wrapper.findComponent(TournamentSetup).props('isHost')).toBe(false);
+    await state({ code: 'a-b-c', phase: 'lobby', you: 1, hostId: 1, tournament: tournament({ on: false }) });
     wrapper.findComponent(TournamentSetup).vm.$emit('change', { on: true });
     await flushPromises();
     expect(socket.sent.at(-1)).toEqual(['settings', { tournament: { on: true } }]);

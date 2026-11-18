@@ -229,7 +229,8 @@ What a game author needs to know about it:
   make it up to whatever "fill up with computer players" makes a table up to — four at most games, two at Cribbage.
   Those numbers are measured off the game's own rules rather than read from its manifest, whose `minPlayers` is the
   fewest *people*, not the fewest players at a table.
-- **A tournament room is never handed to your `viewFor`, `nextAction`, `start`, or your own socket events.**  Its
+- **A tournament room is never handed to your `viewFor`, `nextAction`, `afterChange`, `start`, or your own socket
+  events.**  Its
   lobby holds more people than your game has seats for, and nothing of your game is played in it; the site draws it
   (`src/components/Tournament*.vue`, through `GameShell`).  Your lobby is still drawn, with the offer of a tournament
   under it, until the setting is switched on.

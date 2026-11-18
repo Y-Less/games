@@ -250,7 +250,9 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
     votes.tidy(room); // a vote about somebody who has gone, or one too few people are left for
     scheduler.forget(room.code);
     try {
-      afterChange?.(room);
+      // Not for a tournament: the game has nothing in that room, so a hook of its own that ran there would be
+      // looking at a game that was never played (and handing out what it hands out for one).
+      if (!tournaments.settingOf(room)) afterChange?.(room);
     } catch (error) {
       ctx.log('afterChange failed:', error);
     }
