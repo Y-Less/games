@@ -329,7 +329,7 @@
     "playing": "Being played",
     "played": "Played",
     "unfinished": "Nobody finished it",
-    "sittingOut": "You are sitting this round out. There is an odd number of you.",
+    "sittingOut": "You are sitting this round out: there are not enough of you left for another game.  Everybody plays the same number of games.",
     "waiting": "Waiting for the other games of this round to finish.",
     "over": "Every combination has played. That is the tournament.",
     "standings": "Standings",

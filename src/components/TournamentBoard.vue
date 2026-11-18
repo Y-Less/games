@@ -23,7 +23,10 @@ const emit = defineEmits(['go']);
 const over = computed(() => props.tournament.phase === 'finished');
 /** This round's games, or the round just played once the tournament is over. */
 const games = computed(() => (over.value ? props.tournament.last : props.tournament.tables));
-/** Nobody drew this person a game this round: with an odd number, somebody has to sit one out. */
+// Nobody drew this person a game this round.  In pairs that is the odd one out; at larger tables it is however many
+// are left over once the round's games are made up, which can be more than one of them.  Everybody sits out the same
+// number of rounds in the end, since every person is in the same number of combinations.
+
 const sittingOut = computed(() => !over.value && games.value.length > 0 && !games.value.some((table) => table.yours));
 </script>
 
