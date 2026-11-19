@@ -33,8 +33,10 @@ const IN_TURN = ['word', 'picking', 'voting'];
  * Side effects: none.
  */
 /**
- * The lines that open a turn: the one that was skipped to get here, if one was, and whose word it now is.  A turn
- * is new when the phase is `word` and either the game was not in it before or the chooser has changed under it.
+ * The lines that open a turn: the one that was skipped to get here, if one was, and whose word it now is — or, in a
+ * game with no chooser, that one has been picked for the table.  A turn is new when the game is in the first phase
+ * of one (somebody choosing a word, or, with nobody to, the cards going down) under a turn number it was not under
+ * a state ago.
  * @param {object | null} prev  the state before
  * @param {object} next  the state that has just arrived
  * @param {(id: *) => *} name  names a player
@@ -42,11 +44,16 @@ const IN_TURN = ['word', 'picking', 'voting'];
  * Side effects: none.
  */
 function turnOpening(prev, next, name) {
-  if (next.phase !== 'word' || (prev && prev.phase === 'word' && prev.chooserId === next.chooserId)) return [];
+  if (next.phase !== (next.noChooser ? 'picking' : 'word')) return [];
+  if (prev && prev.turn === next.turn) return [];
   const out = [];
   // A turn left behind without being completed: say so before announcing the one replacing it.
   if (prev && IN_TURN.includes(prev.phase) && prev.completedTurns === next.completedTurns) out.push(msg('log.skipped'));
-  out.push(msg('log.choosing', { n: turnNumber(next), name: name(next.chooserId) }));
+  const n = turnNumber(next);
+  // Whose word it is, or, with nobody choosing one, that the table has been given one (and who judges, if anybody).
+  if (!next.noChooser) out.push(msg('log.choosing', { n, name: name(next.chooserId) }));
+  else if (next.chooserId === null) out.push(msg('log.turnRandom', { n }));
+  else out.push(msg('log.turnRandomJudge', { n, name: name(next.chooserId) }));
   return out;
 }
 

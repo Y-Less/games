@@ -42,8 +42,11 @@ export function createStore({ shell, user = null }) {
    */
   function onState(next, previous) {
     log.value = !next || next.phase === 'lobby' ? [] : [...log.value, ...newEntries(previous, next)].slice(-200);
-    // The word being chosen is announced to everyone at the same moment (the imposter sees ???), once per turn.
-    if (next && previous?.phase === 'word' && next.phase === 'picking') {
+    // The word is announced to everyone at the same moment (the imposter sees ???), once per turn: as the chooser
+    // locks it in, or, in a game with no chooser, as the turn opens with it already picked.  Either way that is the
+    // step on to a turn's cards going down, which a skipped turn makes 'picking' to 'picking' under a new number.
+    const wordIsNews = next?.phase === 'picking' && previous && (previous.phase !== 'picking' || previous.turn !== next.turn);
+    if (wordIsNews) {
       // `hidden` says the viewer is the one kept in the dark; the pop-up itself writes what they see instead.
       wordPopup.value = { word: next.wordHidden ? null : next.word, key: `${next.turn}:${next.completedTurns}`, hidden: Boolean(next.wordHidden), at: Date.now() };
     }
@@ -53,8 +56,9 @@ export function createStore({ shell, user = null }) {
     if (next?.phase === 'voting' && previous?.phase === 'picking' && previous.wordHidden) {
       imposterWord.value = { word: next.word, key: `${next.turn}:${next.completedTurns}` };
     }
-    // A new turn, the lobby, or no game at all: last turn's word is not news any more.
-    if (!next || next.phase === 'word' || next.phase === 'lobby') imposterWord.value = null;
+    // A new turn, the lobby, or no game at all: last turn's word is not news any more.  With no chooser there is no
+    // 'word' phase to mark the change, so the turn's own number does it.
+    if (!next || next.phase === 'word' || next.phase === 'lobby' || (previous && previous.turn !== next.turn)) imposterWord.value = null;
     // Back in the lobby, or out of the game, nothing from the last turn may be left to show: a lightbox would still
     // hold a card from before.
     if (!next || next.phase === 'lobby') {

@@ -1,6 +1,7 @@
 <script setup>
 // Dixnt lobby: the invite code, the shared players panel (the host can remove people and add computer players), and
-// the host's settings: play style, card categories, hand size, and how many rounds the game runs for.  Everyone else sees them
+// the host's settings: play style, whether anybody chooses the word, card categories, hand size, and how many rounds
+// the game runs for.  Everyone else sees them
 // read-only.  Every word comes from a locale file (the game's own first, then the site's); a category's label may be
 // a message the server sent, so it is drawn with text().
 //
@@ -27,14 +28,28 @@ const selected = computed(() => state.value.categories.filter((c) => c.selected)
 // The names of the chosen categories, as the language joins a list.
 const selectedNames = computed(() => selected.value.map((c) => text(c.label)).join(', '));
 
-// The three play styles with their titles and rule text (which quotes the current point values).
+// The three play styles with their titles and rule text (which quotes the current point values).  "Favourite card" is
+// the word-chooser picking the one they like best, so with nobody choosing the word it cannot be picked: the host
+// unticks "No chooser" to get it back, and the server refuses the pair either way round.
 const judgingOptions = computed(() => [
   { mode: 'everyone', title: t('judging.everyone.title'), text: t('judging.everyone.text', { perVote: state.value.pointsPerVote }) },
   { mode: 'chooser', title: t('judging.chooser.title'), text: t('judging.chooser.text', { correct: state.value.pointsChooserCorrect, fooled: state.value.pointsFooledChooser }) },
-  { mode: 'favourite', title: t('judging.favourite.title'), text: t('judging.favourite.text', { points: state.value.pointsFavourite }) },
+  {
+    mode: 'favourite',
+    title: t('judging.favourite.title'),
+    text: state.value.noChooser ? t('judging.favourite.needsChooser') : t('judging.favourite.text', { points: state.value.pointsFavourite }),
+    off: state.value.noChooser,
+  },
 ]);
 // The option for the style in use (shown to non-hosts).
 const currentJudging = computed(() => judgingOptions.value.find((o) => o.mode === state.value.judging));
+// How long the game runs, in words: with a chooser it is counted in everybody's goes at the word, without one in rounds.
+const lengthWords = computed(() => ({
+  times: t('lobby.times', { count: state.value.rounds }, state.value.rounds),
+  rounds: t('lobby.roundCount', { count: state.value.rounds }, state.value.rounds),
+  turns: t('lobby.turns', { count: players.value.length * state.value.rounds }, players.value.length * state.value.rounds),
+  players: t('lobby.playerCount', { count: players.value.length }, players.value.length),
+}));
 
 /**
  * Adds a category to the deck, or removes it if it is already in, by sending the whole new selection.
@@ -74,12 +89,13 @@ function toggleCategory(key) {
     <h2>{{ t('lobby.playStyle') }}</h2>
     <template v-if="isHost">
       <div class="options" role="radiogroup" :aria-label="t('lobby.playStyle')">
-        <label v-for="option in judgingOptions" :key="option.mode" class="option" :class="{ on: state.judging === option.mode }">
+        <label v-for="option in judgingOptions" :key="option.mode" class="option" :class="{ on: state.judging === option.mode, off: option.off }">
           <input
             type="radio"
             name="judging"
             :value="option.mode"
             :checked="state.judging === option.mode"
+            :disabled="option.off"
             @change="send('settings', { judging: option.mode })"
           />
           <span>
@@ -88,10 +104,22 @@ function toggleCategory(key) {
           </span>
         </label>
       </div>
+      <label class="option" :class="{ on: state.noChooser }">
+        <input type="checkbox" :checked="state.noChooser" @change="send('settings', { noChooser: $event.target.checked })" />
+        <span>
+          <strong>{{ t('lobby.noChooser') }}</strong>
+          <span class="muted">{{ t('lobby.noChooserText') }}</span>
+        </span>
+      </label>
     </template>
-    <p v-else>
-      <strong>{{ currentJudging.title }}.</strong> <span class="muted">{{ currentJudging.text }}</span>
-    </p>
+    <template v-else>
+      <p>
+        <strong>{{ currentJudging.title }}.</strong> <span class="muted">{{ currentJudging.text }}</span>
+      </p>
+      <p v-if="state.noChooser">
+        <strong>{{ t('lobby.noChooser') }}.</strong> <span class="muted">{{ t('lobby.noChooserText') }}</span>
+      </p>
+    </template>
   </section>
 
   <section class="panel stack">
@@ -135,7 +163,7 @@ function toggleCategory(key) {
         />
       </label>
       <label class="row">
-        {{ t('lobby.rounds') }}
+        {{ t(state.noChooser ? 'lobby.roundsNoChooser' : 'lobby.rounds') }}
         <input
           type="number"
           class="num"
@@ -145,15 +173,7 @@ function toggleCategory(key) {
           @change="send('settings', { rounds: $event.target.value })"
         />
       </label>
-      <p class="muted">
-        {{
-          t('lobby.gameLength', {
-            times: t('lobby.times', { count: state.rounds }, state.rounds),
-            turns: t('lobby.turns', { count: players.length * state.rounds }, players.length * state.rounds),
-            players: t('lobby.playerCount', { count: players.length }, players.length),
-          })
-        }}
-      </p>
+      <p class="muted">{{ t(state.noChooser ? 'lobby.gameLengthNoChooser' : 'lobby.gameLength', lengthWords) }}</p>
       <button class="primary" :disabled="missingPlayers > 0 || !enoughCards" @click="send('start')">
         <template v-if="missingPlayers > 0">{{ t('lobby.needMore', { count: missingPlayers }, missingPlayers) }}</template>
         <template v-else-if="!enoughCards">{{ t('lobby.chooseMoreCategories') }}</template>
@@ -161,20 +181,21 @@ function toggleCategory(key) {
       </button>
     </template>
     <p v-else class="muted">
-      {{ t('lobby.waitingToStart', { handSize: state.handSize, times: t('lobby.times', { count: state.rounds }, state.rounds) }) }}
+      {{ t(state.noChooser ? 'lobby.waitingToStartNoChooser' : 'lobby.waitingToStart', { handSize: state.handSize, ...lengthWords }) }}
     </p>
   </section>
 
   <section class="panel rules">
     <h3>{{ t('lobby.howItWorks') }}</h3>
     <ol>
-      <li>{{ t('lobby.rule.word') }}</li>
+      <li>{{ t(state.noChooser ? 'lobby.rule.wordRandom' : 'lobby.rule.word') }}</li>
       <li v-if="state.judging === 'favourite'">{{ t('lobby.rule.everyoneSees') }}</li>
-      <li v-else>{{ t('lobby.rule.oneInTheDark', { hidden: t('table.hiddenWord') }) }}</li>
+      <li v-else>{{ t(state.noChooser ? 'lobby.rule.oneInTheDarkAll' : 'lobby.rule.oneInTheDark', { hidden: t('table.hiddenWord') }) }}</li>
       <li v-if="state.judging !== 'favourite'">{{ t('lobby.rule.bluff') }}</li>
       <li>{{ t('lobby.rule.reveal') }}</li>
       <li v-if="state.judging === 'favourite'">{{ t('lobby.rule.favourite', { points: state.pointsFavourite }) }}</li>
-      <li v-else>{{ t(state.judging === 'chooser' ? 'lobby.rule.chooserDecides' : 'lobby.rule.everyoneVotes') }}</li>
+      <li v-else-if="state.judging !== 'chooser'">{{ t('lobby.rule.everyoneVotes') }}</li>
+      <li v-else>{{ t(state.noChooser ? 'lobby.rule.judgeDecides' : 'lobby.rule.chooserDecides') }}</li>
     </ol>
   </section>
 </template>
@@ -206,6 +227,10 @@ function toggleCategory(key) {
 .category.on {
   border-color: var(--amber);
   background: color-mix(in srgb, var(--amber) 10%, var(--bg-sunken));
+}
+.option.off {
+  opacity: 0.55;
+  cursor: default;
 }
 .option input,
 .category input {

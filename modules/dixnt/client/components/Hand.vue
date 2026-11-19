@@ -29,8 +29,8 @@ const { send, store } = useDixnt();
 const state = computed(() => store.state);
 // The cards still in your hand: the one you have played is not among them until the turn is over and it is replaced.
 const hand = computed(() => state.value.hand.filter((cardId) => cardId !== state.value.myPick));
-// True when the viewer may play a card now: the picking phase, and not the chooser.
-const canPlay = computed(() => state.value.phase === 'picking' && !state.value.isChooser);
+// True when the viewer may play a card now: the picking phase, and a turn they are in (everyone is, with no chooser).
+const canPlay = computed(() => state.value.phase === 'picking' && state.value.playsCard);
 
 /**
  * Builds the buttons the card viewer shows for one of your cards: a Play button while cards are being played.

@@ -16,24 +16,33 @@
     "noCategories": "No categories available",
     "deckSize": "{count} card in the deck. | {count} cards in the deck.",
     "notEnoughCards": "That isn't enough for {players} players with {handSize} cards each ({needed} needed).",
+    "noChooser": "No chooser",
+    "noChooserText": "Nobody types the word: it is picked at random, and everybody plays a card. Only the styles that end in a vote can be played this way.",
     "handSize": "Cards per hand",
     "rounds": "Rounds: times each player chooses the word",
+    "roundsNoChooser": "Rounds: times each player's turn comes round",
     "gameLength": "The game ends once everyone has chosen {times}: that is {turns} with {players}.",
+    "gameLengthNoChooser": "The game runs for {rounds}: that is {turns} with {players}.",
     "times": "{count} time | {count} times",
+    "roundCount": "{count} round | {count} rounds",
     "turns": "{count} turn | {count} turns",
     "playerCount": "{count} player | {count} players",
     "needMore": "Need {count} more player | Need {count} more players",
     "chooseMoreCategories": "Choose more categories",
     "waitingToStart": "Waiting for the host to start the game. Hands will be {handSize} cards, and everyone chooses the word {times}.",
+    "waitingToStartNoChooser": "Waiting for the host to start the game. Hands will be {handSize} cards, and the game runs for {rounds}.",
     "howItWorks": "How it works",
     "rule": {
       "word": "Each turn one player thinks of a word or phrase and types it in.",
+      "wordRandom": "Each turn a word or phrase is picked at random for the whole table.",
       "everyoneSees": "Everyone else sees it and plays the card from their hand that best fits the word.",
       "oneInTheDark": "Everyone else sees it, except one random player who just sees {hidden}.",
+      "oneInTheDarkAll": "Everybody sees it, except one random player who just sees {hidden}.",
       "bluff": "They all play the card from their hand that best fits the word. The player in the dark has to bluff.",
       "reveal": "The cards and the word are revealed. Talk it through and justify your choices.",
       "favourite": "Then the chooser picks their favourite card, and that player scores {points}.",
       "chooserDecides": "Then the vote: the chooser decides who they think was in the dark.",
+      "judgeDecides": "Then the vote: the player whose turn it is decides who they think was in the dark.",
       "everyoneVotes": "Then the vote: everyone votes for who they think was in the dark."
     }
   },
@@ -51,8 +60,10 @@
     "favourite": {
       "title": "Favourite card (no imposter)",
       "short": "Favourite card",
-      "text": "Everybody sees the word and nobody has to bluff. The chooser picks the card they like best, and the player who played it scores {points}."
-    }
+      "text": "Everybody sees the word and nobody has to bluff. The chooser picks the card they like best, and the player who played it scores {points}.",
+      "needsChooser": "Somebody has to choose the word to pick a favourite, so this one needs the chooser."
+    },
+    "noChooserShort": "no chooser"
   },
   "turn": {
     "label": "Turn {n}",
@@ -74,11 +85,16 @@
     "imposter": "{name} was the imposter.",
     "chooserSpotted": "The chooser spotted them.",
     "chooserFooled": "The chooser was fooled.",
+    "judgeSpotted": "The judge spotted them.",
+    "judgeFooled": "The judge was fooled.",
     "groupFound": "The group found them.",
     "groupFooled": "The group was fooled."
   },
   "popup": {
     "turns": "Turns as chooser",
+    "turnsAsJudge": "Turns as judge",
+    "turnsTaken": "Turns taken",
+    "theJudge": "the judge",
     "choosingWord": "choosing the word",
     "waitingForWord": "waiting for the word",
     "hasPlayed": "has played a card",
@@ -89,6 +105,7 @@
   },
   "facts": {
     "chooser": "Chooser: {name}",
+    "judge": "Judge: {name}",
     "word": "Word: {word}",
     "deck": "Deck {draw} / discard {discard}",
     "code": "Code {code}"
@@ -103,9 +120,12 @@
     "lockIn": "Lock it in",
     "lastTurn": "That was the last turn: see the final scores",
     "nextTurn": "Next turn: {name} chooses the word",
+    "nextTurnJudge": "Next turn: {name} decides",
+    "nextTurnPlain": "Next turn",
     "backToLobby": "Back to the lobby",
     "skipTurn": "Skip turn",
     "confirmSkip": "Abandon this turn (no points) and move on to the next word-chooser?",
+    "confirmSkipNoChooser": "Abandon this turn (no points) and move on to the next word?",
     "card": "Card {id}",
     "playThis": "Play this card",
     "playInstead": "Play this one instead",
@@ -184,6 +204,8 @@
   "log": {
     "skipped": "The turn was skipped.",
     "choosing": "Turn {n}: {name} is choosing a word.",
+    "turnRandom": "Turn {n}: a word was picked for the table.",
+    "turnRandomJudge": "Turn {n}: a word was picked for the table. {name} decides.",
     "chose": "{name} chose the word.",
     "played": "{name} played a card.",
     "voted": "{name} voted.",

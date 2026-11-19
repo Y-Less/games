@@ -15,9 +15,9 @@ const words = (value) => messageText(value, 'dixnt');
 const lineWords = (line) => words(line?.tone ? line.text : line);
 
 // ---- a state shaped like the server's view ----
-const player = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, score: 0, turns: 0, online: true, bot: false, ai: null, isChooser: false, hasPlayed: false, hasVoted: false, placement: null, winner: false, ...extra });
-/** The usual table of four: Ann (who chooses the word), Bob, and two computer players. */
-const table = () => [player('ann', 'Ann', { isChooser: true }), player('bob', 'Bob'), player('cy', 'Cy', { bot: true }), player('di', 'Di', { bot: true })];
+const player = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, score: 0, turns: 0, online: true, bot: false, ai: null, isChooser: false, plays: true, hasPlayed: false, hasVoted: false, placement: null, winner: false, ...extra });
+/** The usual table of four: Ann (who chooses the word, and so plays no card), Bob, and two computer players. */
+const table = () => [player('ann', 'Ann', { isChooser: true, plays: false }), player('bob', 'Bob'), player('cy', 'Cy', { bot: true }), player('di', 'Di', { bot: true })];
 /** The same table once the game is over, won by the players named (who share first place; the rest share second). */
 const wonBy = (...ids) => table().map((p) => ({ ...p, winner: ids.includes(p.id), placement: ids.includes(p.id) ? 1 : 2 }));
 /** A view for the viewer named by `me.id` (Ann unless it says otherwise); the rest of `me` is their own place. */
@@ -42,6 +42,7 @@ function view(extra = {}, { id: you = 'ann', ...me } = {}) {
     pointsFooledChooser: 5,
     pointsFavourite: 2,
     judging: 'everyone',
+    noChooser: false,
     categories: [],
     availableCards: 400,
     drawCount: 30,
@@ -49,6 +50,7 @@ function view(extra = {}, { id: you = 'ann', ...me } = {}) {
     word: 'Dragon',
     wordHidden: false,
     isChooser: true,
+    playsCard: Boolean(players.find((p) => p.id === you)?.plays), // the server works it out the same way round
     hand: [1, 2, 3, 4, 5, 6],
     myPick: null,
     myVote: null,
@@ -158,6 +160,21 @@ describe('Dixnt Status words', () => {
     expect(done.lines.map(lineWords).join(' ')).toMatch(/Votes for Cy: Bob/);
   });
 
+  // With no chooser everybody plays a card, so the player whose turn it is is told to play like anybody else rather
+  // than told to sit and wait, and nobody is waited on for a word.
+  it('tells everybody to play a card when nobody chooses the word', () => {
+    const all = table().map((p) => ({ ...p, isChooser: false, plays: true }));
+    const turn = (extra = {}, me = {}) => view({ noChooser: true, chooserId: null, players: all, ...extra }, { isChooser: false, ...me });
+    expect(words(statusFor(turn()).headline)).toMatch(/play the card that fits/i);
+    expect(words(statusFor(turn({}, { id: 'bob' })).headline)).toMatch(/play the card that fits/i);
+    // And the one kept in the dark still is, whoever's turn it is.
+    expect(words(statusFor(turn({ wordHidden: true, word: null })).headline)).toMatch(/did not see the word/);
+    // Once a card is down, the wait names everybody still to play — the player whose turn it is among them, where
+    // with a chooser they would have been left out of the list altogether.
+    const waiting = statusFor(turn({ players: all.map((p) => (p.id === 'bob' ? { ...p, hasPlayed: true } : p)) }, { id: 'bob', myPick: 3 }));
+    expect(waiting.lines.map(lineWords).join(' ')).toContain('Waiting for Ann, Cy and Di');
+  });
+
   it('names the winner at the end, with the way on for the host and for the others', () => {
     const over = (isHost) => statusFor(view({ phase: 'finished', players: wonBy('bob'), completedTurns: 4 }), { isHost });
     expect(words(over(true).headline)).toBe('Bob wins!');
@@ -186,9 +203,24 @@ describe('Dixnt move log', () => {
     expect(stepped(voted, favourite)).toEqual(['Ann picked Bob’s card.']);
   });
 
+  // With no chooser a turn opens straight on the cards, so the line that announces it hangs on the turn's number
+  // rather than on a word phase there no longer is.
+  it('opens a turn nobody chose the word for, and names the judge when there is one', () => {
+    const all = table().map((p) => ({ ...p, isChooser: false, plays: true }));
+    const open = (extra = {}) => view({ noChooser: true, chooserId: null, phase: 'picking', players: all, ...extra });
+    expect(stepped(null, open())).toEqual(['Turn 1: a word was picked for the table.']);
+    expect(stepped(view({ phase: 'results' }), open({ turn: 2, completedTurns: 1 }))).toEqual(['Turn 2: a word was picked for the table.']);
+    expect(stepped(open(), open())).toEqual([], 'and not again while the same turn is played');
+    const judged = open({ judging: 'chooser', chooserId: 'ann', players: all.map((p) => ({ ...p, isChooser: p.id === 'ann' })) });
+    expect(stepped(null, judged)).toEqual(['Turn 1: a word was picked for the table. Ann decides.']);
+    // A turn abandoned here steps from cards to cards, which the turn's number is what tells apart.
+    expect(stepped(open(), open({ turn: 2 }))).toEqual(['The turn was skipped.', 'Turn 1: a word was picked for the table.']);
+  });
+
   it('notes a skipped round and the end of the game, and nothing for the lobby or a repeated state', () => {
     const picking = view({ phase: 'picking' });
-    const next = view({ phase: 'word', chooserId: 'bob', players: picking.players.map((p) => ({ ...p, isChooser: p.id === 'bob' })) });
+    // A skipped turn leaves the cards behind and opens a new turn, which the server counts: `turn` goes up.
+    const next = view({ phase: 'word', turn: 2, chooserId: 'bob', players: picking.players.map((p) => ({ ...p, isChooser: p.id === 'bob' })) });
     expect(stepped(picking, next)).toEqual(['The turn was skipped.', 'Turn 1: Bob is choosing a word.']);
     expect(stepped(view({ phase: 'results' }), view({ phase: 'finished', players: wonBy('ann', 'bob') }))).toEqual(['The game is over: Ann and Bob win.']);
     expect(stepped(picking, picking)).toEqual([]);

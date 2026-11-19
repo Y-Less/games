@@ -88,19 +88,26 @@ watch(choosing, async (now) => {
 // ---- the end of a turn, and the host's buttons ----
 // True when the turn just finished was the last one.
 const isLastTurn = computed(() => state.value.completedTurns >= state.value.totalTurns);
-// Name of the player who chooses the next word (the next in seat order after the current chooser).
+// Name of the player whose turn comes next (the next in seat order), or null when nobody has a part of their own:
+// with no chooser and everybody voting there is nobody to name, only the next word.
 const nextChooser = computed(() => {
   const list = players.value;
   const current = list.findIndex((p) => p.isChooser);
-  return list[(current + 1) % list.length]?.name;
+  return current === -1 ? null : list[(current + 1) % list.length]?.name ?? null;
+});
+// What the button on to the next turn says: the last one, whose word it will be, who will decide, or simply "next".
+const nextTurnLabel = computed(() => {
+  if (isLastTurn.value) return t('table.lastTurn');
+  if (!nextChooser.value) return t('table.nextTurnPlain');
+  return t(state.value.noChooser ? 'table.nextTurnJudge' : 'table.nextTurn', { name: nextChooser.value });
 });
 /**
- * Host only: abandons the current turn (no points) and moves to the next chooser, after asking.
+ * Host only: abandons the current turn (no points) and moves on, after asking.
  * @returns {Promise<void>}
  * Side effects: shows a confirm dialog; sends `abortTurn` if confirmed.
  */
 async function skipTurn() {
-  if (window.confirm(t('table.confirmSkip'))) await send('abortTurn');
+  if (window.confirm(t(state.value.noChooser ? 'table.confirmSkipNoChooser' : 'table.confirmSkip'))) await send('abortTurn');
 }
 </script>
 
@@ -120,10 +127,7 @@ async function skipTurn() {
         <button type="button" @click="getHints">{{ t(hints.length ? 'table.moreIdeas' : 'table.giveIdeas') }}</button>
         <button class="primary" :disabled="!word.trim() || busy">{{ t('table.lockIn') }}</button>
       </form>
-      <template v-else-if="phase === 'results'">
-        <button v-if="isLastTurn" class="primary" @click="send('nextTurn')">{{ t('table.lastTurn') }}</button>
-        <button v-else class="primary" @click="send('nextTurn')">{{ t('table.nextTurn', { name: nextChooser }) }}</button>
-      </template>
+      <button v-else-if="phase === 'results'" class="primary" @click="send('nextTurn')">{{ nextTurnLabel }}</button>
       <button v-else-if="finished && isHost" class="primary" @click="send('again')">{{ t('table.backToLobby') }}</button>
       <span class="spacer" />
       <div v-if="isHost && ['word', 'picking', 'voting'].includes(phase)" class="host">

@@ -17,11 +17,14 @@ export function statusFor(state, { isHost = false } = {}) {
   const players = state.players;
   const chooser = players.find((p) => p.isChooser);
   const chooserName = chooser?.name ?? msg('status.theChooser');
-  const waitingOnCards = players.filter((p) => !p.isChooser && !p.hasPlayed).map((p) => p.name);
+  // Who the turn is still waiting on for a card: whoever plays one this turn, which with no chooser is everybody.
+  const waitingOnCards = players.filter((p) => p.plays && !p.hasPlayed).map((p) => p.name);
   const waitingOnVotes = players.filter((p) => !p.hasVoted).map((p) => p.name);
   // Returns the name of a player id ('?' if unknown).  A table keyed by a player id has text keys, while a person's
   // id is their account number, so the two are matched as text.
   const nameOf = (id) => players.find((p) => String(p.id) === String(id))?.name ?? '?';
+  // Is the viewer one of the players?  Somebody looking in from outside has no place in the turn at all.
+  const inGame = players.some((p) => String(p.id) === String(state.you));
   // Returns a Status line in the muted tone.
   const muted = (text) => ({ text, tone: 'muted' });
 
@@ -38,7 +41,10 @@ export function statusFor(state, { isHost = false } = {}) {
 
   if (state.phase === 'picking') {
     const waiting = waitingOnCards.length ? msg('status.waitingFor', { names: waitingOnCards }) : null;
-    if (state.isChooser) return { headline: waiting ?? msg('status.everyonePlayed'), mine: false, lines: [muted(msg('status.yourWord'))] };
+    // The chooser is the one person who sits a turn's cards out, and only where there is one: with no chooser even
+    // the player whose turn it is plays, so it is whether you play a card that decides what you are told, not who you
+    // are.  Somebody who is not in the room plays no card either, and is told what the table is doing, not what to do.
+    if (inGame && !state.playsCard) return { headline: waiting ?? msg('status.everyonePlayed'), mine: false, lines: [muted(msg('status.yourWord'))] };
     if (state.myPick !== null) return { headline: msg('status.cardPlayed'), mine: false, lines: [muted(msg('status.canSwap')), ...(waiting ? [waiting] : [])] };
     if (state.wordHidden) return { headline: msg('status.playInTheDark'), mine: true, lines: [muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])] };
     return {
