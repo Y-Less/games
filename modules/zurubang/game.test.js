@@ -1,4 +1,4 @@
-// The rules of Zurubang with no sockets: a turn, a challenge, a duel laid out and fought, and what each of them does
+// The rules of Zurubang with no sockets: a turn, a challenge, and a duel laid out and fought — and what each of them does
 // to the score, the hands, and whose turn it is next.
 import test from 'node:test';
 import assert from 'node:assert/strict';

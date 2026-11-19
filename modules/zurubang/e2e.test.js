@@ -82,6 +82,12 @@ test('a whole game against a computer player, over sockets, is played and record
   const stats = await ann.stats();
   assert.equal(stats.perGame[0].played, 1, 'one record for the one game');
   assert.equal(site.site.db.prepare('SELECT COUNT(*) AS n FROM result_players').get().n, 1, 'and nothing at all for the computer player');
+
+  // Every different card she has held is counted towards "the whole deck", which nothing but the server does.
+  const sections = (await ann.http('GET', '/api/achievements')).data.sections;
+  const collector = sections.flatMap((section) => section.achievements ?? []).find((achievement) => achievement.id === 'zurubang.collector');
+  assert.ok(collector, 'the achievement is on the page');
+  assert.ok(collector.value >= 5, `she held at least a hand of cards, but the achievement says ${collector.value}`);
 });
 
 test('a chair left in the middle of a game is taken by a computer player, and given back when its owner returns', async (t) => {

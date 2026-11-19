@@ -20,7 +20,7 @@ import { addMove, recentMoves } from '../../shared/moveLog.js';
 import { placements, seatScoreboardEntry } from '../../shared/scores.js';
 import { asHost, botSeats, createSeatRules, emptySeats, fail, hostInLobby, humanSeats, isBot, isGone, isHuman, nextGame, ok, seatOf, taken, wouldPlay } from '../../shared/seats.js';
 import { bump, extrasOf, freshTally, peak, statsRows } from '../../shared/tally.js';
-import { BACKS, cardOf, fullDeck, isCard } from './cards.js';
+import { BACK_ELEMENT, CARDS, cardOf, fullDeck, isCard } from './cards.js';
 import { POSITIONS, drawCard, fightAt, other, pickUp } from './duel.js';
 import { AIS } from './ai/index.js';
 
@@ -418,7 +418,7 @@ export function challenge(room, seat) {
   if (room.phase !== 'turn') return fail('notYourTurn');
   if (seat !== room.turn) return fail('notYourTurn');
   if (!playing(room, seat)) return fail('notInGame');
-  room.duel = { challenger: seat, starter: null, placed: [Array(POSITIONS).fill(null), Array(POSITIONS).fill(null)], at: 0, fights: [], points: [0, 0], fiveBack: [null, null], special: [null, null], revealed: [], sudden: null, result: null };
+  room.duel = { challenger: seat, starter: null, placed: [Array(POSITIONS).fill(null), Array(POSITIONS).fill(null)], at: 0, fights: [], points: [0, 0], fiveElement: [null, null], special: [null, null], revealed: [], sudden: null, result: null };
   room.phase = 'challenged';
   addMove(room, msg('log.challenged', { name: room.seats[seat].name, other: room.seats[other(seat)].name }), LOG_LIMIT);
   return ok();
@@ -465,12 +465,31 @@ export function chooseStarter(room, seat, who) {
   const starter = numberFrom(who);
   if (starter !== 0 && starter !== 1) return fail('chooseAPlayer');
   room.duel.starter = starter;
-  // The special hands are judged on the backs in hand at the moment the duel starts, and nothing afterwards changes them.
+  // The special hands are judged on the backs in hand at the moment the duel starts, and nothing afterwards changes
+  // them.  What a five-of-a-kind hand is worth in a fight is the **element** its backs promise, not the colour of
+  // them: a fight weighs faces, and "white" is not a face.
   room.duel.special = room.hands.map(specialHand);
-  room.duel.fiveBack = room.hands.map((hand) => (specialHand(hand) === 'fiveOfAKind' ? cardOf(hand[0]).back : null));
+  room.duel.fiveElement = room.hands.map((hand) => (specialHand(hand) === 'fiveOfAKind' ? BACK_ELEMENT[cardOf(hand[0]).back] : null));
   room.phase = 'placing';
   addMove(room, msg('log.starts', { name: room.seats[starter].name }), LOG_LIMIT);
   return ok();
+}
+
+/** Every card's place in the deck, which is how an achievement counts the different ones somebody has held. */
+const CARD_NUMBER = new Map(CARDS.map((card, index) => [card.id, index]));
+
+/**
+ * The deck numbers of the cards each person is holding, for the achievement that counts how many different ones they
+ * have ever had.  Only accounts are in it: a computer player collects nothing.
+ *
+ * @param {object} room
+ * @returns {{ userId: number, cards: number[] }[]} one entry per person holding anything
+ * Side effects: none.
+ */
+export function heldByPeople(room) {
+  return room.seats.flatMap((seat, i) =>
+    isHuman(seat) && room.hands[i]?.length ? [{ userId: seat.id, cards: room.hands[i].map((id) => CARD_NUMBER.get(id)).filter((n) => n !== undefined) }] : [],
+  );
 }
 
 /**

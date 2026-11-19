@@ -91,7 +91,7 @@ test('ruling: a card drawn in the middle of a duel comes off the fullest stack, 
     placed: [Array(POSITIONS).fill('blue-02'), Array(POSITIONS).fill('white-21')],
     stacks: [['a1'], ['b1', 'b2', 'b3'], ['c1', 'c2']],
     graveyard: [],
-    fiveBack: [null, null],
+    fiveElement: [null, null],
     at: 0,
     fights: [],
     points: [0, 0],
@@ -140,6 +140,21 @@ test('ruling: a card already out of the sudden death cannot be chosen again', ()
   assert.equal(game.suddenPick(room, 0, 2, rng()).error, 'cardIsOut');
 });
 
+test('ruling: five of a kind beats the element it usually loses to, all the way through the real rules', () => {
+  // Five white backs, which promise air, against the Zombie, which is spirit, and spirit beats air.  Firgol is a
+  // plain air 2 and the Zombie a 3, so nothing but the special hand can hand this fight to the white player.
+  const room = table();
+  laidOut(room, ['white-03', 'white-06', 'white-07', 'white-08', 'white-09'], ['black-07', 'red-03', 'red-05', 'red-09', 'red-12'], { challenger: 0, starter: 0 });
+  assert.equal(room.duel.special[0], 'fiveOfAKind');
+  assert.deepEqual(room.duel.fiveElement, ['air', null], 'the element the backs promise, never the colour of them');
+  // Each side fills its positions in the order it holds them, so position 1 is the Cloud Gnome against the Zombie.
+  game.revealNext(room, rng());
+  const fight = room.duel.fights[0];
+  assert.deepEqual(fight.cards, ['white-03', 'black-07']);
+  assert.equal(fight.by, 'element');
+  assert.equal(fight.winner, 0, 'spirit beats air, and five air backs say otherwise');
+});
+
 test('ruling: what five of a kind and a rainbow are worth is settled when the duel starts, and nothing later changes it', () => {
   const room = table();
   // Five white backs, one of which the Mercy Twister opposite will throw away before a card is even fought.
@@ -155,7 +170,7 @@ test('ruling: the swap moves whatever is standing in the two places, even when t
     placed: [['black-06', null, null, null, null], ['blue-02', null, null, null, null]],
     stacks: [['white-22'], [], []],
     graveyard: [],
-    fiveBack: [null, null],
+    fiveElement: [null, null],
     at: 0,
     fights: [],
     points: [0, 0],
@@ -172,7 +187,7 @@ test('ruling: the Beast Kid adds what he draws to his own four, and a Zurubang d
     placed: [['green-09', null, null, null, null], ['white-21', null, null, null, null]],
     stacks: [[top], [], []],
     graveyard: [],
-    fiveBack: [null, null],
+    fiveElement: [null, null],
     at: 0,
     fights: [],
     points: [0, 0],

@@ -142,11 +142,10 @@ const duelResult = computed(() => {
   return result.winner === me.value ? t('status.youTook', { points }) : t('status.theyTook', { name: s.value.seats[result.winner]?.name ?? '', points });
 });
 
-/** The persistent facts: the duel number, the score to play to, and what is left to draw from. */
+/** The persistent facts: the score to play to, how many duels have been fought, and the graveyard. */
 const facts = computed(() => [
   { label: t('facts.playingTo'), value: String(s.value.target) },
   { label: t('facts.duels'), value: String(s.value.duelNo) },
-  { label: t('facts.stacks'), value: s.value.stacks.join(' · ') },
   { label: t('facts.graveyard'), value: String(s.value.graveyard) },
 ]);
 
@@ -200,7 +199,7 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
         :round-popups="false"
         v-bind="scoreProps"
         running
-        @continue="send('ready')"
+        @continue="phase === 'duelOver' && send('ready')"
       />
     </template>
 
@@ -269,19 +268,27 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
       <GameStatus :headline="headline" :mine="mine" :lines="lines">
         <template #facts>
           <span v-for="fact in facts" :key="fact.label" class="fact"><span class="muted">{{ fact.label }}</span> <strong>{{ fact.value }}</strong></span>
+          <!-- The stacks are a fact and a choice at once, which keeps the turn's own buttons down to one row. -->
+          <span class="fact stacks">
+            <span class="muted">{{ t('facts.stacks') }}</span>
+            <button
+              v-for="button in stackButtons"
+              :key="button.index"
+              class="quiet pill"
+              :class="{ primary: stack === button.index }"
+              :aria-pressed="stack === button.index"
+              :disabled="!button.count || phase !== 'turn' || !mine"
+              @click="stack = stack === button.index ? null : button.index"
+            >
+              {{ button.label }}
+            </button>
+          </span>
         </template>
 
-        <div v-if="phase === 'turn' && mine" class="stack">
-          <div class="row">
-            <span class="muted">{{ t('table.drawFrom') }}</span>
-            <button v-for="button in stackButtons" :key="button.index" :class="{ primary: stack === button.index }" :aria-pressed="stack === button.index" :disabled="!button.count" @click="stack = stack === button.index ? null : button.index">{{ button.label }}</button>
-          </div>
-          <div class="row">
-            <button class="primary" :disabled="!picked" @click="swapOne">{{ t('table.swapOne') }}</button>
-            <button @click="swapAll">{{ t('table.swapAll') }}</button>
-            <button @click="send('challenge')">{{ t('table.challenge') }}</button>
-          </div>
-          <p v-if="!picked" class="muted small">{{ t('table.pickToSwap') }}</p>
+        <div v-if="phase === 'turn' && mine" class="row">
+          <button class="primary" :disabled="!picked" @click="swapOne">{{ picked ? t('table.swapOne') : t('table.pickToSwap') }}</button>
+          <button @click="swapAll">{{ t('table.swapAll') }}</button>
+          <button @click="send('challenge')">{{ t('table.challenge') }}</button>
         </div>
 
         <div v-else-if="phase === 'challenged' && mine" class="row">
@@ -352,6 +359,12 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
 .fact {
   margin-right: 0.9rem;
   white-space: nowrap;
+}
+.stacks button.pill {
+  margin-left: 0.3rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
 }
 .small {
   margin: 0;

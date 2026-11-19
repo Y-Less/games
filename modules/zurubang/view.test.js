@@ -4,7 +4,7 @@
 // Zurubang's secrecy is the other way round from every other card game on the site: the backs are public and the
 // faces are private.  So the check below is not "does the view mention a card", which it must, but "does it name a
 // card whose face this reader may not know": their own hand, their own side of the battlefield, and whatever has
-// been turned over are allowed, and a stack, the graveyard and the other player's hand are not.
+// been turned over are allowed, and a stack, the graveyard, and the other player's hand are not.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as game from './game.js';

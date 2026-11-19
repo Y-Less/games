@@ -49,7 +49,8 @@ export const beatsFace = (mine, theirs) => Boolean(mine) && Boolean(theirs) && B
 
 /**
  * The element a card back promises.  Most of the time the back tells the truth, which is the whole reason the game
- * puts them on show, so an AI planning against a back is planning against five chances in six.
+ * puts them on show: sixteen of the twenty-one cards behind a back really are that element, so an AI planning
+ * against a back is right about three times in four.
  *
  * @param {string | null} back
  * @returns {string | null}

@@ -18,16 +18,17 @@ server.js     the socket half (shared/roomServer.js) and the server's own moves
 ai/           the computer players, one file each, named after the rulebook's own playing styles
 client/       the screens: the root, the lobby, the table, and one card
 arena.js      whole games of computers against computers, for the AI and invariant tests
-views.js      a seeded game recorded view by view, for the view, leak and drawing tests
+views.js      a seeded game recorded view by view, for the view, leak, and drawing tests
 locales/en.json  every word, including all 105 card names and 25 talent texts under `cards.`
 cards/        the art, served at /assets/zurubang/cards/{faces,backs}/<name>.jpg
+tools/        build-cards.py, which writes cards.js, the card words, and the art
 ```
 
 The tests, in the order they are worth reading:
 
 ```
 duel.test.js        one fight at a time: the order of the checks, and every talent
-game.test.js        a turn, a challenge, a duel laid out and fought, and what each does to the score
+game.test.js        a turn, a challenge, a duel laid out and fought, and what each does to the score bar
 rules-gaps.test.js  one test per ruling below, named after it
 invariants.test.js  every card is in exactly one place after every move of 72 whole games
 view.test.js        the same views for a seed, and never a face its reader has not been shown
@@ -38,12 +39,18 @@ client/render-all.test.js  every view of two whole games, drawn by the real tabl
 ../../ui-tests/zurubang.test.js  two browsers: five faces against five backs, and ten cards going down
 ```
 
-`cards.js` and the `cards` block of `locales/en.json` are generated from `../../../zurubang/cards.json`,
-and the card art from the sheets there, with ImageMagick:
+`cards.js`, the `cards` block of `locales/en.json`, and the card art are all written by one tool, which
+needs Python 3 and ImageMagick:
 
 ```sh
-magick <face>.png -resize 360x -strip -interlace Plane -quality 84 cards/faces/<id>.jpg
+python tools/build-cards.py              # the deck, the words, and the art
+python tools/build-cards.py --no-art     # everything but the art, which takes a minute
 ```
+
+It reads `../../../zurubang/cards.json` and the sheets beside it (or wherever `ZURUBANG_SOURCE` points),
+and it merges its block into the locale file rather than overwriting it, so the rest of the game's words
+are safe.  Every talent's text is written in the tool, in the site's voice rather than the card's, which
+is where to change one.
 
 Card names are **not** in any `.js` file on purpose.  `src/i18n.test.js` reads every string literal in a
 module and fails on anything that reads like English, so a hundred card names in a data file would be a
@@ -81,11 +88,11 @@ The rulebook does not settle these.  Each one has a test of its own named after 
 | **The Dark Warlord's count** | Spirit cards still face down anywhere on the battlefield, on both sides, at the moment of its own fight — which is to say, the positions not yet fought. |
 | **The Elementals' count** | Cards of its own element face up on the battlefield: the positions already fought, plus the card opposite it, and never itself. |
 | **Melody's count** | Every non-elemental card on the battlefield, face up or face down, except Melody. |
-| **Five of a kind** | Judged on the five backs in hand when the duel starts, and nothing afterwards changes it.  For the whole duel, a card of that player's whose **face** is the back's element also beats the element that normally beats it.  The bonus points are added to the total they bank, if they win. |
+| **Five of a kind** | Judged on the five backs in hand when the duel starts, and nothing afterwards changes it.  What it is worth in a fight is the **element those backs promise**, not the colour of them: a fight weighs faces, and "white" is not a face.  For the whole duel, a card of that player's whose face is that element also beats the element that normally beats it.  The bonus points are added to the total they bank, if they win. |
 | **The Ogre Mage only once** | If the card it drags out of the graveyard is also power 8 or less, nothing happens a second time. |
 | **"Power 4 or less" against a Zurubang** | The power **printed** on the card, before any talent touches it.  A Beast Kid who has drawn well is still a 4. |
 | **An indestructible card's point** | The `indestructible` talent takes its point from a destroying card.  The Zurubang simply survives and takes nothing: it is not one of "those cards" the rulebook's note is about. |
-| **Where five of a kind would decide both ways** | A spirit five-of-a-kind facing earth makes each side beat the other.  The element then decides nothing and the fight is settled by the questions after it.  The same holds of two talents that each claim to beat the other. |
+| **Five of a kind against the element it beats** | A spirit five-of-a-kind facing earth makes each side beat the other, since earth beats spirit by the circle and the hand says it does not.  The **hand wins**: it is written as an exception to the circle, and the only element it can ever add is the one that was about to beat it, so weighing the two equally would cancel every such hand out and the rule would never once do anything.  (Two of them pointing at each other is impossible in a circle of five.)  Two talents that each claim to beat the other do cancel out, because neither is an exception to the other. |
 | **A swapping card that was destroyed** | The swap moves whatever is standing in the two positions when the duel ends — which is how "the swap also happens after this card has been destroyed" can mean anything at all. |
 | **The Beast Kid's drawn card** | Its power is added to his own 4, not put in its place.  A Zurubang drawn has no number, so it adds nothing. |
 | **When the Ki-Rin draws** | At the end of its own fight, once the destroying is settled, rather than at the end of the duel.  A Ki-Rin that was destroyed never draws, and the point it may take has to count towards the duel it was won in. |

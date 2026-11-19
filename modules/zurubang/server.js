@@ -31,10 +31,27 @@ export default function (ctx) {
   const nextWait = readDelayMs('ZURUBANG_NEXT_WAIT', 60000);
   ctx.mount('/cards', path.join(here, 'cards'), { maxAge: '7d', immutable: true });
 
+  /** What each person is holding, counted once ever towards "the whole deck" (see module.json). */
+  const lastHands = new WeakMap(); // room -> the hands last counted, so a change that moved no card costs nothing
+  function collectCards(room) {
+    const held = game.heldByPeople(room);
+    const signature = held.map((person) => `${person.userId}:${person.cards.join(',')}`).join('|');
+    if (lastHands.get(room) === signature) return;
+    lastHands.set(room, signature);
+    for (const person of held) {
+      try {
+        ctx.achievements?.collect(person.userId, 'collector', person.cards);
+      } catch (error) {
+        ctx.log(`could not collect cards: ${error.message}`);
+      }
+    }
+  }
+
   return createRoomServer(ctx, {
     game,
     pickSettings,
     migrate: game.migrate,
+    afterChange: collectCards,
     /**
      * A computer player's move after a short think; failing that, the next pair of the duel turned over; failing that,
      * the wait for both players to close a duel that nobody has closed.  A move that is refused is thrown, so that the

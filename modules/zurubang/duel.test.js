@@ -1,20 +1,20 @@
-// The rules of one fight, with no room, no sockets and no computer players: a pair of cards, a position, and what the
+// The rules of one fight, with no room, no sockets, and no computer players: a pair of cards, a position, and what the
 // rulebook says should come of it.  Everything here reads like the rules themselves on purpose — these are the tests
 // that have to stay readable when somebody comes back to an argument about a talent two years from now.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POSITIONS, WIN_POINTS, beatsByElement, fightAt, fullestStack, pickUp, printedPower, refillStacks, sweep } from './duel.js';
+import { POSITIONS, WIN_POINTS, beatsByElement, beatsBySpecial, fightAt, fullestStack, pickUp, printedPower, refillStacks, sweep } from './duel.js';
 
 /**
  * A battle with two cards facing each other at one position and nothing else on the table, which is what most of
  * these tests want.  `stacks` and `graveyard` are given so that a talent that draws has somewhere to draw from.
  */
-function pair(a, b, { position = 0, stacks = [[], [], []], graveyard = [], fiveBack = [null, null], marker = 0, also = [] } = {}) {
+function pair(a, b, { position = 0, stacks = [[], [], []], graveyard = [], fiveElement = [null, null], marker = 0, also = [] } = {}) {
   const placed = [Array(POSITIONS).fill(null), Array(POSITIONS).fill(null)];
   placed[0][position] = a;
   placed[1][position] = b;
   for (const [side, at, id] of also) placed[side][at] = id;
-  return { placed, stacks, graveyard, fiveBack, at: position, fights: [], points: [0, 0], marker };
+  return { placed, stacks, graveyard, fiveElement, at: position, fights: [], points: [0, 0], marker };
 }
 
 /** Fights the pair and gives back the fight, for a test that wants to read the result rather than the battle. */
@@ -267,17 +267,27 @@ test('a swapping card changes sides when the cards are picked up, and two of the
   assert.deepEqual(pickUp(both), [['red-09'], ['black-06']], 'swapped twice, so neither moved');
 });
 
-test('five of a kind also beats the element that normally beats it', () => {
-  assert.equal(beatsByElement('spirit', 'earth', null), false, 'spirit loses to earth in the ordinary way');
-  assert.equal(beatsByElement('spirit', 'earth', 'spirit'), true, 'and beats it on a hand of five spirit backs');
-  assert.equal(beatsByElement('spirit', 'air', 'spirit'), true, 'what it already beat, it still beats');
+test('the circle alone: spirit beats air, air beats water, and a non-elemental face is in none of it', () => {
+  assert.equal(beatsByElement('spirit', 'air'), true);
+  assert.equal(beatsByElement('spirit', 'earth'), false, 'spirit loses to earth in the ordinary way');
+  assert.equal(beatsByElement('spirit', 'none'), false);
 });
 
-test('where five of a kind would have both cards beating the other, the element decides nothing', () => {
-  const battle = pair('black-07', 'green-16', { fiveBack: ['spirit', null] }); // Zombie, spirit 3; Earth Elemental, 8
-  const result = fight(battle);
-  assert.equal(result.by, 'power', 'earth beats spirit, and the special hand beats earth, so neither does');
-  assert.equal(result.winner, 1);
+test('five of a kind adds the one arrow pointing back: the element that normally beats yours', () => {
+  assert.equal(beatsBySpecial('spirit', 'earth', 'spirit'), true, 'earth beat spirit, and now it does not');
+  assert.equal(beatsBySpecial('spirit', 'earth', null), false, 'without the hand, nothing changes');
+  assert.equal(beatsBySpecial('spirit', 'air', 'spirit'), false, 'what it already beat it beats by the circle, not by this');
+  assert.equal(beatsBySpecial('air', 'earth', 'spirit'), false, 'and only the hand\'s own element gains anything');
+});
+
+test('five of a kind beats the element that would otherwise have beaten it', () => {
+  // The Zombie is spirit 3 against the Earth Elemental, 8: earth beats spirit, and five spirit backs say otherwise.
+  const plain = fight(pair('black-07', 'green-16'));
+  assert.equal(plain.winner, 1);
+  assert.equal(plain.by, 'element');
+  const special = fight(pair('black-07', 'green-16', { fiveElement: ['spirit', null] }));
+  assert.equal(special.winner, 0, 'the hand is an exception to the circle, so it beats the circle');
+  assert.equal(special.by, 'element');
 });
 
 test('a card that is nothing but its printed power is read as such, and a Zurubang as infinite', () => {

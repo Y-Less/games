@@ -2,7 +2,7 @@
 // client's draw-everything test (vitest): the same views reach all three, so what the server sends is also what the
 // table has to be able to draw.
 //
-// Seat 0 stays a person, so that a hand, a battlefield of your own cards and a duel's result are all in the record;
+// Seat 0 stays a person, so that a hand, a battlefield of your own cards, and a duel's result are all in the record;
 // seat 1 is a computer player.  The person's moves are a plain script rather than an AI, because this is about the
 // views a game passes through, not about playing it well.
 import assert from 'node:assert/strict';

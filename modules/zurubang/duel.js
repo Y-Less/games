@@ -43,15 +43,17 @@ export const printedPower = (id) => {
  * @param {object} parts
  * @param {string[][]} parts.stacks      the three stacks, top of each at the end
  * @param {string[]} parts.graveyard     the discard pile, top at the end
- * @param {(string | null)[]} parts.fiveBack  each side's back colour if their hand was five of a kind, else null
+ * @param {(string | null)[]} parts.fiveElement  the **element** behind each side's hand if it was five of a kind,
+ *   else null.  The element, not the colour of the back: they are two different words for the same card, and the
+ *   faces this is weighed against are elements.
  * @returns {object} the battle
  * Side effects: none (the arrays passed in are the ones it will use).
  */
-export const newBattle = ({ stacks, graveyard, fiveBack = [null, null] }) => ({
+export const newBattle = ({ stacks, graveyard, fiveElement = [null, null] }) => ({
   placed: [Array(POSITIONS).fill(null), Array(POSITIONS).fill(null)],
   stacks,
   graveyard,
-  fiveBack,
+  fiveElement,
   at: 0,
   fights: [],
   points: [0, 0],
@@ -279,17 +281,19 @@ function powerOf(c) {
  * 6. A flying card that is weaker escapes, for a draw — unless the other one flies too.
  * 7. Power, and equal powers draw.
  *
- * Where a rule would have both sides winning (which only five of a kind can do), it decides nothing and the next
- * question is asked instead.
+ * Where a rule other than the element would have both sides winning, it decides nothing and the next question is
+ * asked instead.  The element is the exception, and has to be: five of a kind only ever adds the one element that
+ * normally beats you, so a hand that holds it would cancel itself out every single time if the two were weighed
+ * equally.  It is an exception to the circle, so it beats the circle.
  *
  * @param {object[]} sides   the two contexts, 0 then 1
  * @param {Set<string>[]} abilities  each side's abilities
  * @param {number[]} powers  each side's power
- * @param {(string | null)[]} fiveBack  each side's five-of-a-kind back, if they had one
+ * @param {(string | null)[]} fiveElement  the element behind each side's five-of-a-kind hand, if they had one
  * @returns {{ winner: number | null, by: string }} the winning side and which rule decided it
  * Side effects: none.
  */
-export function decide(sides, abilities, powers, fiveBack) {
+export function decide(sides, abilities, powers, fiveElement) {
   const zurubang = sides.map((c) => c.card?.talent === 'zurubang');
   if (zurubang[0] && zurubang[1]) return { winner: null, by: 'zurubang' };
   for (const side of [0, 1]) {
@@ -298,8 +302,10 @@ export function decide(sides, abilities, powers, fiveBack) {
     return { winner: weak ? other(side) : side, by: 'zurubang' };
   }
 
-  const elementWin = [0, 1].map((side) => beatsByElement(sides[side].card?.face, sides[other(side)].card?.face, fiveBack[side]));
-  const byElement = onlyOne(elementWin);
+  const byElement = elementWinner(
+    sides.map((c) => c.card?.face),
+    fiveElement,
+  );
   if (byElement !== null) return { winner: byElement, by: 'element' };
 
   const talentWin = [0, 1].map((side) => Boolean(BEATS_OUTRIGHT[sides[side].card?.talent]?.(sides[side])));
@@ -326,19 +332,51 @@ export function decide(sides, abilities, powers, fiveBack) {
 const onlyOne = ([a, b]) => (a === b ? null : a ? 0 : 1);
 
 /**
- * Does this face beat that one?  Spirit beats air beats water beats fire beats earth, and earth beats spirit; a side
- * holding five backs of one element also beats the element that normally beats that one.
+ * Does this face beat that one by the circle alone?  Spirit beats air beats water beats fire beats earth, and earth
+ * beats spirit.  A non-elemental face neither wins nor loses this way.
  *
- * @param {string | undefined} mine
- * @param {string | undefined} theirs
- * @param {string | null} fiveBack  this side's five-of-a-kind element, or null
+ * @param {string | undefined} mine  @param {string | undefined} theirs
  * @returns {boolean}
  * Side effects: none.
  */
-export function beatsByElement(mine, theirs, fiveBack) {
+export function beatsByElement(mine, theirs) {
   if (!mine || !theirs || mine === 'none' || theirs === 'none') return false;
-  if (BEATS[mine] === theirs) return true;
-  return Boolean(fiveBack) && mine === fiveBack && BEATS[theirs] === fiveBack;
+  return BEATS[mine] === theirs;
+}
+
+/**
+ * Does five backs of one element let this face beat that one?  The hand's element beats the element that normally
+ * beats it, and only that: it is one more arrow on the circle, pointing back the way.
+ *
+ * @param {string | undefined} mine  @param {string | undefined} theirs
+ * @param {string | null | undefined} fiveElement  the element behind this side's five-of-a-kind hand, or null
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export function beatsBySpecial(mine, theirs, fiveElement) {
+  if (!fiveElement || !mine || !theirs || theirs === 'none') return false;
+  return mine === fiveElement && BEATS[theirs] === fiveElement;
+}
+
+/**
+ * Which side the element gives the fight to, or null when it gives it to neither.
+ *
+ * A five-of-a-kind hand is asked about first, because it is written as an exception to the circle and the only
+ * element it can ever add is the one that was about to beat it: weighed equally, every such hand would cancel itself
+ * out and the rule would never once do anything.  Two of them pointing at each other is impossible in a circle of
+ * five, so the question of what to do about that does not arise — but the plain circle is still asked both ways
+ * round, and still decides nothing if a change elsewhere ever makes it answer twice.
+ *
+ * @param {(string | undefined)[]} faces  each side's face element
+ * @param {(string | null)[]} fiveElement  each side's five-of-a-kind element, or null
+ * @returns {number | null}
+ * Side effects: none.
+ */
+export function elementWinner(faces, fiveElement = [null, null]) {
+  const special = [0, 1].map((side) => beatsBySpecial(faces[side], faces[other(side)], fiveElement[side]));
+  const bySpecial = onlyOne(special);
+  if (bySpecial !== null) return bySpecial;
+  return onlyOne([0, 1].map((side) => beatsByElement(faces[side], faces[other(side)])));
 }
 
 /**
@@ -376,7 +414,7 @@ export function fightAt(battle, rng = null, positions = [battle.at, battle.at]) 
 
   const abilities = sides.map(abilitiesOf);
   const powers = sides.map(powerOf);
-  const { winner, by } = decide(sides, abilities, powers, battle.fiveBack);
+  const { winner, by } = decide(sides, abilities, powers, battle.fiveElement ?? [null, null]);
 
   const points = [0, 0];
   if (winner === null) points[0] = points[1] = DRAW_POINTS;

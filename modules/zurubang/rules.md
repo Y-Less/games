@@ -12,8 +12,8 @@ You hold five cards.  Each one has a **face** — a power from 1 to 11, an eleme
 perhaps a talent — and a **back**, which shows an element in a colour.
 
 Of the 21 cards behind each back, 16 really are that element, three are non-elemental, one is a Zurubang,
-and one is a "ghost" of the element that back's element loses to.  So a blue back is water five times out of
-six, and the sixth time it is something else entirely.
+and one is a "ghost" of the element that back's element loses to.  So a blue back is water about three
+times in four, and the fourth time it is something else entirely.
 
 ## Your turn
 
