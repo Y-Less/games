@@ -155,6 +155,7 @@ export const MIGRATIONS = [
   addUserColumn('site_font', 'TEXT'), // the font; NULL: the first, free one
   addUserColumn('animations_choice', 'INTEGER'), // NULL: follow the device's own motion setting
   addUserColumn('language', 'TEXT'), // the site's language (a tag such as 'fr'); NULL: follow the browser
+  addUserColumn('card_order', 'TEXT'), // how a hand is laid out (shared/cards.js CARD_ORDERS); NULL: high to low
   addUserColumn('online_seconds', 'INTEGER NOT NULL DEFAULT 0'), // how long they have been on the site, banked per visit (server/presence.js)
   {
     // Matrix B was taken off sale (its code is kept). Whoever owned it was given Matrix (the former Matrix A, 'matrix-a') in its

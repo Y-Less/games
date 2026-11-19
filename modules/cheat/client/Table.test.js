@@ -7,6 +7,7 @@ import Lobby from './Lobby.vue';
 import { advanceLog } from './moveLog.js';
 import { rankMsg } from './rank.js';
 import { messageText } from '../../../src/messageText.js';
+import { sortHand } from '../../../shared/cards.js';
 
 // A message (a log line, a rank) in English, as the table draws it.
 const words = (message) => messageText(message, 'cheat');
@@ -29,9 +30,13 @@ function room({ seats = 4, started = true } = {}) {
   return r;
 }
 const view = (r) => game.viewFor(r, 1);
-/** Puts the person on turn with a chosen hand. */
+/**
+ * Puts the person on turn with a chosen hand.  It is sorted on the way in because the rules sort every hand they
+ * deal (game.js), so a hand that arrived in any other order is a room that could not happen — and the table lays the
+ * cards out in the player's own order, which starts from the one the server sent.
+ */
 function myTurn(r, hand = ['AS', 'AH', '5C', '9D', 'KD']) {
-  r.hands[0] = [...hand];
+  r.hands[0] = sortHand(hand);
   r.turn = 0;
   r.plays = 0;
   r.pile = ['2C', '3C'];
@@ -100,7 +105,7 @@ describe('the table', () => {
     expect(wrapper.text()).toContain('at most 4 cards');
     await button('Play').trigger('click');
     await flushPromises();
-    expect(sent(socket, 'play')).toEqual([{ cards: ['AS', 'AH', '5C', '9D'] }]);
+    expect(sent(socket, 'play')).toEqual([{ cards: ['AH', 'AS', 'KD', 'QD'] }]);
   });
 
   it('a second click on a picked card puts it back', async () => {
@@ -110,7 +115,7 @@ describe('the table', () => {
     await handCards()[1].trigger('click');
     await handCards()[0].trigger('click');
     await button('Play').trigger('click');
-    expect(sent(socket, 'play')).toEqual([{ cards: ['AH'] }]);
+    expect(sent(socket, 'play')).toEqual([{ cards: ['AS'] }]);
   });
 
   it('can call the last play, and the button is not offered for your own play', async () => {

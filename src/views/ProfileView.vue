@@ -15,6 +15,7 @@ import { intlLocale } from '../messageText.js';
 import { changePassword, updateProfile, uploadBackground, uploadCardBack } from '../profileApi.js';
 import { session } from '../session.js';
 import { owns } from '../shopStore.js';
+import { CARD_ORDERS, CARD_ORDER_ITEM } from '../../shared/cards.js';
 
 const displayName = ref(session.user.displayName); // the name box's text
 // The saved background setting.
@@ -61,6 +62,8 @@ const ANIMATIONS_SAVED = { on: 'profile.animationsOn', off: 'profile.animationsO
 const setAnimations = (value) => attempt(() => updateProfile({ playAnimations: value === 'on' ? true : value === 'off' ? false : null }), ANIMATIONS_SAVED[value]);
 // Saves a numeric setting named `key` (e.g. animation strength) from a slider's input event.
 const setLevel = (key, event) => attempt(() => updateProfile({ [key]: Number(event.target.value) }), 'profile.saved');
+// Saves how this player wants their own hand laid out (shared/cards.js CARD_ORDERS).
+const setCardOrder = (cardOrder) => attempt(() => updateProfile({ cardOrder }), 'profile.cardOrderSaved');
 // A whole-number percentage setting (100 for "normal") as the language writes a percentage.
 const percent = (level) => new Intl.NumberFormat(intlLocale(), { style: 'percent', maximumFractionDigits: 0 }).format(level / 100);
 // The saved language choice for the select: a tag, or '' to follow the browser.
@@ -142,6 +145,20 @@ const isPreset = (key) => current.value.type === 'preset' && current.value.value
       <label class="angle">
         {{ $t('profile.speed') }} <span class="muted">{{ percent(session.user.effectSpeed) }}</span>
         <input type="range" min="25" max="300" step="5" :value="session.user.effectSpeed" :aria-label="$t('profile.speedLabel')" :disabled="!owns('fx-speed')" @change="setLevel('effectSpeed', $event)" />
+      </label>
+    </div>
+
+    <div class="panel stack">
+      <h2>{{ $t('profile.cards') }}</h2>
+      <p class="muted">{{ $t('profile.cardOrderIntro') }}</p>
+      <i18n-t v-if="!owns(CARD_ORDER_ITEM)" keypath="profile.unlockInShop" tag="p" class="muted">
+        <template #shop><RouterLink to="/shop/unlocks">{{ $t('profile.shop') }}</RouterLink></template>
+      </i18n-t>
+      <label class="choice">
+        {{ $t('profile.cardOrder') }}
+        <select :value="session.user.cardOrder" :aria-label="$t('profile.cardOrder')" :disabled="!owns(CARD_ORDER_ITEM)" @change="setCardOrder($event.target.value)">
+          <option v-for="order in CARD_ORDERS" :key="order" :value="order">{{ $t(`profile.cardOrders.${order}`) }}</option>
+        </select>
       </label>
     </div>
 

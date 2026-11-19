@@ -16,7 +16,8 @@ import CardFan from '../../../src/components/CardFan.vue';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import TrickCircle from '../../../src/components/TrickCircle.vue';
-import { sortHand, SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
+import { SUIT_SYMBOLS, suitOf } from '../../../shared/cards.js';
+import { orderForMe } from '../../../src/cardOrder.js';
 import { suitMsg } from '../../../shared/messages.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { useGameText } from '../../../src/useGameText.js';
@@ -46,7 +47,8 @@ const seats = computed(() => props.state.seats);
 // The current round's details (number, cards, trump, dealer).
 const round = computed(() => props.state.round);
 // Your hand sorted for display, with the trump suit grouped as the round dictates.
-const hand = computed(() => sortHand(props.state.hand, props.state.round?.trump));
+// This player's own order (Profile > Cards), with the trump suit kept at the front of it whatever they chose.
+const hand = computed(() => orderForMe(props.state.hand, { trump: props.state.round?.trump ?? null, salt: props.state.code }));
 // Returns the name of a seat, or '' if there is none.
 const nameOf = (seat) => seats.value[seat]?.name ?? '';
 // True when it is your turn to nominate or play.

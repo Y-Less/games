@@ -197,6 +197,20 @@ test('the intensity and speed sliders are unlocks: normal is free, other levels 
   assert.equal((await c.get('/api/me')).data.user.effectSpeed, 250);
 });
 
+test('the card order is an unlock: high to low is free, the other two are not, and nothing else is a card order', async (t) => {
+  const { c } = await shopSite(t, { coins: 3000 });
+  assert.equal((await c.get('/api/me')).data.user.cardOrder, 'highLow', 'what every hand has always been');
+  assert.equal((await c.patch('/api/me', { cardOrder: 'highLow' })).status, 200, 'and what everybody may keep for nothing');
+  assert.equal((await c.patch('/api/me', { cardOrder: 'lowHigh' })).status, 403);
+  assert.equal((await c.patch('/api/me', { cardOrder: 'random' })).status, 403);
+  for (const cardOrder of ['', 'shuffled', 'HIGHLOW', null, 3, ['lowHigh']]) {
+    assert.equal((await c.patch('/api/me', { cardOrder })).status, 400, JSON.stringify(cardOrder));
+  }
+  assert.equal((await c.post('/api/shop/buy', { item: 'card-order' })).status, 200);
+  assert.equal((await c.patch('/api/me', { cardOrder: 'random' })).data.user.cardOrder, 'random');
+  assert.equal((await c.get('/api/me')).data.user.cardOrder, 'random', 'and it is still theirs on the next visit');
+});
+
 test('players: others see a name animation but not your background animation', async (t) => {
   const { c, user, client } = await shopSite(t, { coins: 3000 });
   await c.post('/api/shop/buy', { item: 'na:rainbow' });

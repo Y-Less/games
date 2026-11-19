@@ -19,6 +19,7 @@ import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { cardMsg } from '../../../shared/messages.js';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { useGameText } from '../../../src/useGameText.js';
+import { orderForMe } from '../../../src/cardOrder.js';
 import PlayingCard from '../../../src/components/PlayingCard.vue';
 import CardFan from '../../../src/components/CardFan.vue';
 import OpponentHands from '../../../src/components/OpponentHands.vue';
@@ -206,8 +207,12 @@ async function confirmPass() {
 }
 
 // Once you have passed, those cards are gone from your hand while the others choose (the fan keeps its size, see `max`).
-// (the hand as drawn: your cards less any already passed)
-const shownHand = computed(() => (passing.value && s.value.pass.chosen ? s.value.hand.filter((card) => !s.value.pass.chosen.includes(card)) : s.value.hand));
+// The order is this player's own (Profile > Cards), laid out here rather than dealt that way: the rules deal one hand
+// and every seat at the table has the same one.
+const shownHand = computed(() => {
+  const hand = passing.value && s.value.pass.chosen ? s.value.hand.filter((card) => !s.value.pass.chosen.includes(card)) : s.value.hand;
+  return orderForMe(hand, { salt: s.value.code });
+});
 
 // Whether cards in your hand can be clicked now (choosing cards to pass, or your turn to play).
 const interactive = computed(() => (passing.value && !s.value.pass.chosen) || myTurn.value);

@@ -1,7 +1,7 @@
 // More card helper edge cases (see cards.test.js for the basics).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RANKS, SUITS, cardName, fullDeck, isCard, isRed, rankOf, rankValue, shuffle, sortHand, suitOf } from './cards.js';
+import { CARD_ORDERS, DEFAULT_CARD_ORDER, RANKS, SUITS, cardName, fullDeck, isCard, isCardOrder, isRed, orderHand, rankOf, rankValue, shuffle, sortHand, suitOf } from './cards.js';
 
 test('sortHand: the whole deck comes out grouped H, S, D, C and high to low within each suit', () => {
   const sorted = sortHand(fullDeck());
@@ -10,6 +10,61 @@ test('sortHand: the whole deck comes out grouped H, S, D, C and high to low with
   for (let i = 0; i < 52; i += 13) {
     const values = sorted.slice(i, i + 13).map(rankValue);
     assert.deepEqual(values, [14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2]);
+  }
+});
+
+// How a player has their own hand laid out (a profile setting; see src/cardOrder.js).  The cards a game deals are the
+// same for everybody at the table, so none of this is anything a game decides.
+
+test('the orders are the three there are, and the default is what every hand has always been', () => {
+  assert.deepEqual(CARD_ORDERS, ['highLow', 'lowHigh', 'random']);
+  assert.equal(DEFAULT_CARD_ORDER, 'highLow');
+  for (const order of CARD_ORDERS) assert.equal(isCardOrder(order), true);
+  for (const nonsense of ['', 'shuffled', 'HIGHLOW', null, 3, ['lowHigh'], undefined]) assert.equal(isCardOrder(nonsense), false, JSON.stringify(nonsense));
+  assert.deepEqual(orderHand(fullDeck()), sortHand(fullDeck()), 'and asking for nothing in particular gives it');
+});
+
+test('lowest first turns each suit round and leaves the suits where they were', () => {
+  const high = orderHand(fullDeck(), { order: 'highLow' });
+  const low = orderHand(fullDeck(), { order: 'lowHigh' });
+  assert.deepEqual(low.map(suitOf), high.map(suitOf), 'the same suits in the same places');
+  for (let i = 0; i < 52; i += 13) {
+    assert.deepEqual(low.slice(i, i + 13).map(rankValue), [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+  }
+});
+
+test('the trump suit comes first whichever way round the ranks go', () => {
+  const hand = ['AH', '2C', 'KS', '9C', 'JD'];
+  for (const order of CARD_ORDERS.filter((o) => o !== 'random')) {
+    assert.equal(suitOf(orderHand(hand, { order, trump: 'C' })[0]), 'C', order);
+  }
+});
+
+test('no order at all: a hand is scattered, differently at each table, and the same every time at one', () => {
+  const hand = sortHand(['AH', '5S', '2C', '10H', 'KD', 'JK1', '7S']);
+  const here = orderHand(hand, { order: 'random', salt: 'boss-aware-you' });
+  assert.deepEqual([...here].sort(), [...hand].sort(), 'the same cards');
+  assert.notDeepEqual(here, hand, 'but not in the order they were dealt');
+  assert.deepEqual(orderHand(hand, { order: 'random', salt: 'boss-aware-you' }), here, 'and the same on every redraw');
+  assert.notDeepEqual(orderHand(hand, { order: 'random', salt: 'other-code-here' }), here, 'another table, another order');
+});
+
+test('no order at all stays put as the hand changes, which is the whole difficulty with it', () => {
+  // A hand that rearranged itself every time a card left it would be unplayable, so each card's place is its own.
+  const hand = sortHand(fullDeck().slice(0, 13));
+  const salt = 'boss-aware-you';
+  const before = orderHand(hand, { order: 'random', salt });
+  for (const gone of hand) {
+    const after = orderHand(hand.filter((card) => card !== gone), { order: 'random', salt });
+    assert.deepEqual(after, before.filter((card) => card !== gone), `playing ${gone} moved the others`);
+  }
+});
+
+test('two of the same card always tie, so a hand of several packs can be drawn by position', () => {
+  // Cheat deals more than one pack, and tells the copies apart by where they are in the hand.
+  for (const order of CARD_ORDERS) {
+    const doubled = ['AH', 'AH', '2C', '2C'];
+    assert.deepEqual(orderHand(doubled, { order, salt: 'x' }).filter((card) => card === 'AH').length, 2, order);
   }
 });
 

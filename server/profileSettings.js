@@ -5,6 +5,7 @@ import { numberFrom } from '../shared/input.js';
 import { AVATAR_SLOTS, isAvatarOption, normaliseAvatar } from '../shared/avatar.js';
 import { isBackgroundAnimation, isNameAnimation } from '../shared/animations.js';
 import { isNameStyle } from '../shared/nameStyles.js';
+import { isCardOrder } from '../shared/cards.js';
 import { normaliseMarker } from '../shared/markerColours.js';
 import { AuthError } from './errors.js';
 
@@ -126,6 +127,18 @@ export function cleanPlayAnimations(input) {
 export function cleanEffectLevel(input, { min, max }) {
   if (!Number.isInteger(input) || input < min || input > max) throw new AuthError('invalidEffectLevel', 400, { min, max });
   return input;
+}
+
+/**
+ * Checks how a hand is to be laid out: one of the orders in shared/cards.js.
+ * @param {*} input  what the client sent
+ * @returns {string}
+ * @throws {AuthError} 400 for anything else
+ * Side effects: none.
+ */
+export function cleanCardOrder(input) {
+  if (isCardOrder(input)) return input;
+  throw new AuthError('invalidCardOrder');
 }
 
 /**

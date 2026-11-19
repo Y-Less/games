@@ -2,6 +2,7 @@
 // checked and saved.  Every setting is one row of SETTINGS, so adding one means adding a row (and its column in db.js).
 import { textFrom } from '../shared/input.js';
 import { normaliseAvatar } from '../shared/avatar.js';
+import { DEFAULT_CARD_ORDER, isCardOrder } from '../shared/cards.js';
 import { isBackgroundAnimation } from '../shared/animations.js';
 import { DEFAULT_NAME_STYLE } from '../shared/nameStyles.js';
 import { normaliseMarker } from '../shared/markerColours.js';
@@ -16,6 +17,7 @@ import {
   cleanBackground,
   cleanBackgroundAnimation,
   cleanCardBack,
+  cleanCardOrder,
   cleanChoice,
   cleanEffectLevel,
   cleanMarkerColour,
@@ -97,7 +99,13 @@ export const SETTINGS = [
   { key: 'backgroundAnimation', column: 'background_animation', gated: true, clean: cleanBackgroundAnimation, store: asIs },
   { key: 'effectIntensity', column: 'effect_intensity', gated: true, clean: (input) => cleanEffectLevel(input, EFFECT_INTENSITY), store: asIs },
   { key: 'effectSpeed', column: 'effect_speed', gated: true, clean: (input) => cleanEffectLevel(input, EFFECT_SPEED), store: asIs },
+  // How this person is shown their own hand.  Nothing but their own screen reads it: the cards a game deals are the
+  // same for everybody at the table, and this is the order they are laid out in front of one of them.
+  { key: 'cardOrder', column: 'card_order', gated: true, clean: cleanCardOrder, store: asIs },
 ];
+
+/** What a profile change may name, which is what the PATCH route reads out of the body (server/routes/profile.js). */
+export const SETTING_KEYS = SETTINGS.map(({ key }) => key);
 
 /**
  * Reads a stored name style, falling back to the plain default when it is damaged.
@@ -159,7 +167,7 @@ export const publicProfile = (row) => ({ displayName: row.display_name, nameStyl
 export function publicUser(row) {
   const background = parseJson(row.background, { type: 'preset', value: 'night' });
   const cardBack = parseJson(row.card_back, { type: 'preset', value: 'crimson' });
-  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), siteTheme: isSiteTheme(row.site_theme) ? row.site_theme : DEFAULT_THEME, siteFont: isSiteFont(row.site_font) ? row.site_font : DEFAULT_FONT, backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, language: isLanguageTag(row.language) ? row.language : null, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0 };
+  return { id: row.id, username: row.username, displayName: row.display_name, isBot: Boolean(row.is_bot), background, cardBack, nameStyle: parseNameStyle(row.name_style), avatar: parseAvatar(row.avatar), markerColour: normaliseMarker(row.marker_colour), siteTheme: isSiteTheme(row.site_theme) ? row.site_theme : DEFAULT_THEME, siteFont: isSiteFont(row.site_font) ? row.site_font : DEFAULT_FONT, backgroundAnimation: isBackgroundAnimation(row.background_animation) ? row.background_animation : 'none', effectIntensity: row.effect_intensity ?? EFFECT_INTENSITY.normal, effectSpeed: row.effect_speed ?? EFFECT_SPEED.normal, language: isLanguageTag(row.language) ? row.language : null, playAnimations: row.animations_choice === null || row.animations_choice === undefined ? null : row.animations_choice !== 0, cardOrder: isCardOrder(row.card_order) ? row.card_order : DEFAULT_CARD_ORDER };
 }
 
 /**

@@ -23,6 +23,7 @@ import PlayingCard from '../../../src/components/PlayingCard.vue';
 import ScoreBoard from '../../../src/components/ScoreBoard.vue';
 import { usePlayerPopup } from '../../../src/usePlayerPopup.js';
 import { useGameText } from '../../../src/useGameText.js';
+import { myCardOrder } from '../../../src/cardOrder.js';
 import { rankMsg } from './rank.js';
 import { callMsg, copiesUpTo } from './text.js';
 
@@ -42,6 +43,18 @@ const board = ref(null);
 const picks = ref([]);
 // A warning for the Status box (for example the pick limit); cleared on the next action.
 const message = ref('');
+
+/**
+ * Your hand in your own order (Profile > Cards), each card with the place it holds in the hand the server sent.
+ * Cheat deals several packs, so the same card can be in your hand twice and everything that picks one up — `chosen`,
+ * `pickAt`, `copiesUpTo` — counts copies by that place.  Reordering the cards for the look of them must not move it,
+ * so the pairs are sorted rather than the cards.  Two of the same card always tie, and the sort is stable, so the
+ * copies stay in the order they came in and the nth of them on screen is still the nth in the hand.
+ */
+const shownHand = computed(() => {
+  const order = myCardOrder({ salt: s.value.code });
+  return s.value.hand.map((card, at) => ({ card, at })).sort((one, other) => order(one.card, other.card));
+});
 // True while a request is in flight, so buttons cannot be double-pressed.
 const sending = ref(false);
 
@@ -256,7 +269,7 @@ const scale = (area) => Math.max(0.55, Math.min(1.4, area.height / (DESIGN_H * r
         </div>
 
         <div class="hand" role="group" :aria-label="t('table.yourHand')">
-          <PlayingCard v-for="(card, i) in state.hand" :key="`${card}-${i}`" :card="card" size="md" :clickable="myTurn" :selected="chosen(card, i)" @pick="pickAt(card, i)" />
+          <PlayingCard v-for="{ card, at } in shownHand" :key="`${card}-${at}`" :card="card" size="md" :clickable="myTurn" :selected="chosen(card, at)" @pick="pickAt(card, at)" />
         </div>
       </section>
     </template>

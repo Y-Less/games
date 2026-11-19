@@ -148,7 +148,16 @@
     "newPassword": "新しいパスワード",
     "newPasswordPlaceholder": "新しいパスワード（8文字以上）",
     "changePassword": "パスワードを変更",
-    "passwordChanged": "パスワードを変更しました。他の端末はサインアウトされました。"
+    "passwordChanged": "パスワードを変更しました。他の端末はサインアウトされました。",
+    "cards": "カード",
+    "cardOrderIntro": "手札の並べ方です。配られるカードは全員同じで、これは自分の画面での並び順だけを変えます。",
+    "cardOrder": "手札の並び",
+    "cardOrderSaved": "並び順を保存しました。",
+    "cardOrders": {
+      "highLow": "強い順",
+      "lowHigh": "弱い順",
+      "random": "並べ替えない"
+    }
   },
   "shop": {
     "title": "ショップ",
@@ -178,7 +187,8 @@
     "use": "使う",
     "unlocked": "解放済み",
     "buyFor": "{price}で買う",
-    "short": "あと{n}ギルダー必要です"
+    "short": "あと{n}ギルダー必要です",
+    "card-order": "手札の並び順を選ぶ"
   },
   "stats": {
     "title": "{name}の統計",
@@ -574,7 +584,8 @@
     "tournamentNotWaiting": "このラウンドは準備を待っているところではありません。",
     "notInThisTournament": "あなたはこのトーナメントに参加していません。",
     "tournamentHostOnly": "トーナメントから人を外せるのはホストだけです。",
-    "tournamentNobodyThere": "そこに外せる人はいません。"
+    "tournamentNobodyThere": "そこに外せる人はいません。",
+    "invalidCardOrder": "カードの並び順を選んでください。"
   },
   "facts": {
     "gameOver": "ゲーム終了",

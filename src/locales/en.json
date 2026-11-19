@@ -148,7 +148,16 @@
     "newPassword": "New password",
     "newPasswordPlaceholder": "New password (at least 8 characters)",
     "changePassword": "Change password",
-    "passwordChanged": "Password changed. Your other devices have been signed out."
+    "passwordChanged": "Password changed. Your other devices have been signed out.",
+    "cards": "Cards",
+    "cardOrderIntro": "How your own hand is laid out in front of you.  Everybody at the table is dealt the same cards; this is only the order you see yours in.",
+    "cardOrder": "Order your hand",
+    "cardOrderSaved": "Card order saved.",
+    "cardOrders": {
+      "highLow": "Highest first",
+      "lowHigh": "Lowest first",
+      "random": "No order at all"
+    }
   },
   "shop": {
     "title": "Shop",
@@ -180,7 +189,8 @@
     "buyFor": "Buy for {price}",
     "short": "You need {n} more Gilders",
     "refund": "Refund",
-    "refundTitle": "Ask for a refund"
+    "refundTitle": "Ask for a refund",
+    "card-order": "Order your hand how you like"
   },
   "refund": {
     "title": "Refund request",
@@ -587,7 +597,8 @@
     "tournamentNotWaiting": "This round is not waiting for anybody to be ready.",
     "notInThisTournament": "You are not in this tournament.",
     "tournamentHostOnly": "Only the host can put somebody out of a tournament.",
-    "tournamentNobodyThere": "There is nobody there to put out."
+    "tournamentNobodyThere": "There is nobody there to put out.",
+    "invalidCardOrder": "Choose one of the card orders."
   },
   "facts": {
     "gameOver": "Game over",

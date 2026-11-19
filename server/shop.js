@@ -4,6 +4,7 @@
 import { AuthError } from './errors.js';
 import { BACKGROUND_PRESETS, CARD_BACK_PRESETS, EFFECT_INTENSITY, EFFECT_SPEED } from './profileSettings.js';
 import { BACKGROUND_ANIMATIONS, NAME_ANIMATIONS } from '../shared/animations.js';
+import { CARD_ORDER_ITEM, DEFAULT_CARD_ORDER } from '../shared/cards.js';
 import { AVATAR_SLOTS, avatarItemId, avatarItems } from '../shared/avatar.js';
 import { NAME_STYLES } from '../shared/nameStyles.js';
 import { CUSTOM_MARKER_ITEM, isPresetMarker } from '../shared/markerColours.js';
@@ -55,6 +56,7 @@ for (const key of Object.keys(CARD_BACK_PRESETS)) {
 add({ id: 'fx-intensity', type: 'unlock', name: 'Background animation intensity slider', price: 600 });
 add({ id: 'fx-speed', type: 'unlock', name: 'Background animation speed slider', price: 600 });
 add({ id: CUSTOM_MARKER_ITEM, type: 'unlock', name: 'Any marker colour', price: 600 });
+add({ id: CARD_ORDER_ITEM, type: 'unlock', name: 'Order your hand how you like', price: 600 });
 add({ id: 'cb-upload', type: 'unlock', name: 'Your own card back picture', price: 2000 });
 add({ id: 'cb-avatar', type: 'unlock', name: 'Your avatar as a card back', price: 1200 });
 // Buying this turns the shop's Gilder count into a button that leads to the refund page (src/views/RefundView.vue).
@@ -201,9 +203,9 @@ export function choicesChanged(before, after) {
  * @throws {ShopError} 403 naming the first item that must be bought
  * Side effects: none.
  */
-export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, effectIntensity, effectSpeed }) {
+export function checkSettings(db, userId, { background, cardBack, nameStyle, avatar, markerColour, siteTheme, siteFont, backgroundAnimation, effectIntensity, effectSpeed, cardOrder }) {
   const parts = avatar ? AVATAR_SLOTS.map(({ slot }) => avatarItemId(slot, avatar[slot])) : [];
-  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), markerColour && !isPresetMarker(markerColour) && CUSTOM_MARKER_ITEM, nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, siteTheme && `st:${siteTheme}`, siteFont && `sf:${siteFont}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', ...parts]) {
+  for (const itemId of [background && itemForBackground(background), cardBack && itemForCardBack(cardBack), markerColour && !isPresetMarker(markerColour) && CUSTOM_MARKER_ITEM, nameStyle && `ns:${nameStyle.style}`, nameStyle && `na:${nameStyle.animation ?? 'none'}`, backgroundAnimation && `ba:${backgroundAnimation}`, siteTheme && `st:${siteTheme}`, siteFont && `sf:${siteFont}`, effectIntensity !== undefined && effectIntensity !== EFFECT_INTENSITY.normal && 'fx-intensity', effectSpeed !== undefined && effectSpeed !== EFFECT_SPEED.normal && 'fx-speed', cardOrder !== undefined && cardOrder !== DEFAULT_CARD_ORDER && CARD_ORDER_ITEM, ...parts]) {
     if (itemId && !owns(db, userId, itemId)) throw new ShopError('notOwned', 403, { item: byId.get(itemId)?.name ?? itemId });
   }
 }
