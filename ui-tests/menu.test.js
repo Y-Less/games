@@ -46,7 +46,7 @@ test('the menu lists the five original games (and any newer ones) with their pla
     assert.ok(card, `${game.name} is on the menu`);
     assert.equal(card.players, game.players, `${game.name} player count`);
     assert.equal(card.category, game.category, `${game.name} category`);
-    assert.equal(card.href, `/play/${game.id}`);
+    assert.equal(card.href, `/play/${game.id}?new`, 'a card starts a game rather than resuming the last one');
     assert.ok(card.description.length > 20, `${game.name} has a description`);
   }
   // Within the page the groups come in the order the site lists them.

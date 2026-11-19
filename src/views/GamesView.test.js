@@ -47,10 +47,12 @@ describe('GamesView', () => {
     expect(meta).toEqual(['3–8 players', '4 players']);
   });
 
-  it('links each game to its play page and shows the description', () => {
+  it('links each game to a new game of it, not the one you were last in, and shows the description', () => {
+    // Somebody may have several games of one thing on the go; the list above the menu is the way back into those, so
+    // the card itself means "a game of this, please".
     session.games = [game('nomination-whist', 'cards', 3, 7)];
     const link = make().find('a.game');
-    expect(link.attributes('href')).toBe('/play/nomination-whist');
+    expect(link.attributes('href')).toBe('/play/nomination-whist?new');
     expect(link.text()).toContain('About nomination-whist');
   });
 });

@@ -44,7 +44,9 @@ const players = (g) => (g.minPlayers === g.maxPlayers ? t('games.players', { cou
     <div v-for="group in groups" :key="group.key" class="stack">
       <h2>{{ catalogue.categoryLabel(group.key) }}</h2>
       <div class="grid">
-        <RouterLink v-for="game in group.games" :key="game.id" :to="`/play/${game.id}`" class="game panel">
+        <!-- A card starts a game rather than resuming one ("?new"): the games already on the go are listed above,
+             each by name and company, so picking a game off the menu can mean the plain thing it says. -->
+        <RouterLink v-for="game in group.games" :key="game.id" :to="`/play/${game.id}?new`" class="game panel">
           <h3>{{ catalogue.gameName(game) }}</h3>
           <p class="muted">{{ catalogue.gameDescription(game) }}</p>
           <span class="meta muted">{{ players(game) }}</span>
