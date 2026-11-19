@@ -161,9 +161,9 @@
     "graveyard": "Graveyard"
   },
   "fight": {
-    "mercyTwister": "The Mercy Twister sent {card} away for {replacement}.",
-    "ogreMage": "The Ogre Mage dragged {replacement} out of the graveyard in place of {card}.",
-    "necromancer": "The Necromancer dragged {replacement} out of the graveyard in place of {card}.",
+    "mercyTwister": "The Mercy Twister sent the card opposite away for {replacement}.",
+    "ogreMage": "The Ogre Mage dragged {replacement} out of the graveyard to face him.",
+    "necromancer": "The Necromancer dragged {replacement} out of the graveyard to face him.",
     "drew": "{card} drew {drawn} from a stack.",
     "kiRinDrew": "{card} drew {drawn}.",
     "destroyed": "{card} was destroyed.",

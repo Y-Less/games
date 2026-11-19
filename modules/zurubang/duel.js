@@ -201,6 +201,10 @@ const BEFORE = {
  * Puts a card in the opposite position and sends the one that was there to the bottom of the graveyard, so that the
  * same exchange cannot immediately undo itself.
  *
+ * The card that is sent away is **not** named in the message.  It never fought: it was face down when the talent
+ * reached it and it is face down in the graveyard now, so saying what it was would tell both players a card that only
+ * one of them ever knew.  The card that takes its place is named, because it is about to fight and be turned over.
+ *
  * @param {object} c          the fight context
  * @param {string | null} replacement  what to put there, or null if there was nothing to be had
  * @param {string} why        the key of the talent doing it, for the record
@@ -212,7 +216,7 @@ function replaceOpposite(c, replacement, why) {
   const gone = c.againstId;
   c.battle.placed[other(c.side)][c.againstPosition] = replacement;
   if (gone) c.battle.graveyard.unshift(gone);
-  return msg(`fight.${why}`, { card: msg(`cards.${gone}`), replacement: msg(`cards.${replacement}`) });
+  return msg(`fight.${why}`, { replacement: msg(`cards.${replacement}`) });
 }
 
 // ---- one fight ----
@@ -464,6 +468,9 @@ function after(battle, sides, abilities, fight, rng) {
     const drawn = drawCard(battle, rng);
     if (!drawn) continue;
     battle.graveyard.push(drawn);
+    // Recorded with the other talents' draws, because it is the same thing: a card taken off a stack in front of both
+    // players, which is public from the moment it is turned.
+    fight.drawn[side] = drawn;
     const power = printedPower(drawn);
     if (power >= 1 && power <= 7) award(side, 1, 'kiRin');
     else leaving[side] = true;

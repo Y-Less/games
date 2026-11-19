@@ -29,8 +29,6 @@ function addSeen(seen, room) {
   for (const fight of room.duel?.fights ?? []) {
     for (const id of fight.cards) if (id) seen.add(id);
     for (const id of fight.drawn) if (id) seen.add(id);
-    // A talent that drags a card into a fight names it, and that card fights there and then.
-    for (const note of fight.notes) for (const value of Object.values(note.params ?? {})) if (value?.key?.startsWith('cards.')) seen.add(value.key.slice('cards.'.length));
   }
   return seen;
 }

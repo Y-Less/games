@@ -157,9 +157,15 @@ const seats = createSeatRules({
 });
 export const { removeHuman, removeBot, kick, sizeOf } = seats;
 
-/** Seats a person (see the shared addHuman) and gives their seat this game's fields. */
+/**
+ * Seats a person (see the shared addHuman) and gives their seat this game's fields.
+ *
+ * The name is only tidied here, never made unique: the shared rules do that, and they know the one case this file
+ * could not — somebody walking back into a game is taking over the computer player that has been keeping their chair
+ * warm under their own name, so "bob" is free for them again and "bob (2)" would be absurd.
+ */
 export function addHuman(room, userId, name) {
-  const added = seats.addHuman(room, userId, fitName(room, name));
+  const added = seats.addHuman(room, userId, cleanName(name));
   if (added.ok) room.seats[added.seat] = withGameFields(room.seats[added.seat]);
   return added;
 }
@@ -176,18 +182,6 @@ export function fillWithBots(room, userId) {
   const filled = seats.fillWithBots(room, userId);
   if (filled.ok) room.seats = room.seats.map(withGameFields);
   return filled;
-}
-
-/** A name nobody else at the table has, ignoring capitals, and never longer than MAX_NAME_LENGTH. */
-function fitName(room, raw) {
-  const wanted = cleanName(raw);
-  const taken_ = new Set(room.seats.filter(Boolean).map((s) => s.name.toLowerCase()));
-  if (!taken_.has(wanted.toLowerCase())) return wanted;
-  for (let n = 2; ; n++) {
-    const suffix = ` (${n})`;
-    const tried = wanted.slice(0, MAX_NAME_LENGTH - suffix.length) + suffix;
-    if (!taken_.has(tried.toLowerCase())) return tried;
-  }
 }
 
 /**
