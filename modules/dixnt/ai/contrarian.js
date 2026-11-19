@@ -1,7 +1,7 @@
 // Deliberately hard to read.  It gives vague clues, plays cards that only half fit the word (so nobody can tell
 // a bluff from a real play), and suspects whoever played the card that fits the clue a little too well.
 // Depends on ./util.js for the clue-to-category fit scoring; uses only the caller's rng.
-import { best, clueStrength, fitter, pick } from './util.js';
+import { best, clueStrength, fitter, pick, picksBest } from './util.js';
 
 export const contrarian = {
   id: 'contrarian',
@@ -28,8 +28,8 @@ export const contrarian = {
     return fit ? best(hand, (cardId) => -Math.abs(fit(cardId) - 0.5), rng) : pick(hand, rng);
   },
   /**
-   * Suspects whoever played the card that fits the clue best (too neat to be honest); in the favourite style it
-   * picks the card closest to half-fitting as the most interesting.
+   * Suspects whoever played the card that fits the clue best (too neat to be honest); where the vote is about which
+   * card is best, it picks the card closest to half-fitting as the most interesting.
    * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the turn as the voter sees it
    * @param {() => number} rng  random source for ties and for the no-information fallback
    * @returns {string} a player id from `targets`
@@ -39,8 +39,8 @@ export const contrarian = {
     const fit = fitter(word, cards);
     if (!fit) return pick(targets, rng);
     const cardOf = Object.fromEntries(table.map((row) => [row.playerId, row.cardId]));
-    // In the favourite style the chooser picks the most interesting card: the one that is neither obvious nor off.
-    if (judging === 'favourite') return best(targets, (id) => -Math.abs(fit(cardOf[id]) - 0.5), rng);
+    // Asked which card is best, it votes for the most interesting one: neither obvious nor off.
+    if (picksBest(judging)) return best(targets, (id) => -Math.abs(fit(cardOf[id]) - 0.5), rng);
     return best(targets, (id) => fit(cardOf[id]), rng);
   },
 };

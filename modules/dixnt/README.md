@@ -23,17 +23,27 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 - `hints.txt` the word and phrase suggestions for the chooser, and the pool a game with no chooser takes its words
   from (content, not interface: they are not translated).
 - `locales/en.json` every word a player reads, merged under `dixnt.` (see "Languages" in `../../MODULES.md`).
-- `*.test.js` the rules tests (`game`, `judging`, `noChooser`, `turns`, `favourite`, `history`, `bots`) and `e2e.test.js`,
+- `*.test.js` the rules tests (`game`, `judging`, `best`, `noChooser`, `turns`, `favourite`, `history`, `bots`) and `e2e.test.js`,
   `lifecycle.test.js` and friends, which run the real site.
 
 ## Play styles, and the game with no chooser
 
-The host picks one of three ways of judging a turn (`room.judging`: `everyone`, `chooser` or `favourite`; see
-`rules.md`), and beside it may turn the word-chooser off altogether (`room.noChooser`).  With no chooser the word is
+The host picks one of four ways of judging a turn (`room.judging`; see `rules.md`), which are two questions crossed:
+is somebody kept from the word (`IMPOSTER_JUDGING`: `everyone` and `chooser`), and does the whole table decide or one
+player (`VOTE_JUDGING`: `everyone` and `best`)?  The view sends both answers as `hasImposter` and `groupVotes`, so the
+client asks what a turn is like rather than keeping its own list of which styles are which; `ai/util.js` does the same
+with `picksBest`.  `best` is the newest of the four: everybody sees the word, everybody votes for the card they like
+best, and every vote a card is given is worth `POINTS_PER_BEST` to whoever played it, so nothing has to be right and
+no tie has to be broken.  Its `winnerId` is the one card the table settled on, for the stamp and the scoreboard
+remark, and null when two drew.  Having the table settle on your card counts towards `favouritePicks`, like the
+chooser picking it; none of the imposter counters (`roundsAsImposter`, `correctGuesses`, `votesAgainst`,
+`loneDissent` ...) are touched, because a vote there is praise and not an accusation.
+
+Beside the style the host may turn the word-chooser off altogether (`room.noChooser`).  With no chooser the word is
 picked at random from the same suggestions a chooser would have been offered, the `word` phase never happens, and
 **every** player puts a card down rather than everybody but one.
 
-It goes with the styles the whole table votes on (`VOTE_JUDGING`) and with those alone: `chooser` and `favourite` are
+It goes with the styles the whole table votes on and with those alone: `chooser` and `favourite` are
 both one player deciding, and that player **is** the word-chooser, so neither means anything without one.  The pair
 refuses itself whichever setting arrives first (`noChooserNeedsVotes`), and a save holding both loads with the
 variant dropped, the style the host picked winning.

@@ -11,6 +11,15 @@ import { themeScores } from './lexicon.js';
 export const pick = (items, rng) => items[Math.floor(rng() * items.length)];
 
 /**
+ * Is this turn's vote about which card is best, rather than about who was bluffing?  'favourite' is the chooser
+ * picking it and 'best' is the whole table voting on it, but to a voter the question is the same one.
+ * @param {string} judging  the play style
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const picksBest = (judging) => judging === 'favourite' || judging === 'best';
+
+/**
  * The item with the highest score (random among ties when `rng` is given, otherwise the first one).
  * @param {any[]} items  candidates
  * @param {(item: any) => number} score  higher is better

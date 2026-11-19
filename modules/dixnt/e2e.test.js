@@ -517,9 +517,10 @@ async function playComputerGame(t, { judging, categories, noChooser = false }) {
   const rounds = await playToEnd([human]);
   await until(() => human.state.phase === 'finished', 'the end');
   assert.equal(rounds.length, 4);
+  const groupVotes = ['everyone', 'best'].includes(judging);
   for (const { results } of rounds) {
     assert.equal(results.judging, judging);
-    assert.equal(Object.keys(results.votes).length, judging === 'everyone' ? 4 : 1);
+    assert.equal(Object.keys(results.votes).length, groupVotes ? 4 : 1);
     // Everybody plays a card with no chooser, so every player has one to be named; otherwise all but the chooser do.
     assert.equal(Object.keys(results.tally).length, noChooser ? 4 : 3);
   }
@@ -531,7 +532,7 @@ async function playComputerGame(t, { judging, categories, noChooser = false }) {
     assert.ok(rounds.some(({ chooserId }) => human.state.players.find((p) => p.id === chooserId)?.bot), 'a computer player was the chooser at least once');
   }
 
-  if (judging !== 'everyone') {
+  if (!groupVotes) {
     const allowed = judging === 'favourite' ? [2] : [1, 5];
     for (const { results } of rounds) {
       const gained = Object.values(results.deltas).filter(Boolean);
@@ -541,6 +542,15 @@ async function playComputerGame(t, { judging, categories, noChooser = false }) {
         assert.equal(gained.length, 1, 'a favourite is always chosen');
         assert.equal(results.imposterId, null, 'there is no imposter');
       }
+    }
+  }
+  if (judging === 'best') {
+    // Nobody is in the dark and every vote is worth a point, so each turn hands out exactly as many as there are
+    // voters, spread over whichever cards they went to.
+    for (const { results } of rounds) {
+      assert.equal(results.imposterId, null, 'there is no imposter');
+      assert.equal(results.groupCorrect, null, 'and nothing to be right about');
+      assert.equal(Object.values(results.deltas).reduce((a, b) => a + b, 0), 4, 'four voters, four points');
     }
   }
 
@@ -562,6 +572,12 @@ test('computer players play the favourite style: everyone sees the word, the cho
 
 test('computer players play a whole game nobody chooses the word for: every player has a card on the table', (t) =>
   playComputerGame(t, { judging: 'everyone', categories: ['alpha', 'beta'], noChooser: true }));
+
+test('computer players play the best-card style: everyone votes, and every vote is a point', (t) =>
+  playComputerGame(t, { judging: 'best', categories: ['alpha'] }));
+
+test('computer players play the best-card style with nobody choosing the word', (t) =>
+  playComputerGame(t, { judging: 'best', categories: ['beta'], noChooser: true }));
 
 test('several games run side by side, each with its own invite code', async (t) => {
   const { people4, person } = await startDixnt(t);

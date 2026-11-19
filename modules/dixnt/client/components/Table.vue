@@ -70,7 +70,8 @@ const voteCount = (playerId) => (results.value.judging === 'favourite' ? '' : t(
  * Side effects: may show a confirm dialog; sends a `vote` request.
  */
 function castVote(playerId) {
-  if (state.value.judging !== 'everyone') {
+  // A vote of the whole table can be changed until the last one is in; one player's decision ends the turn at once.
+  if (!state.value.groupVotes) {
     const question = t(state.value.judging === 'favourite' ? 'table.confirmFavourite' : 'table.confirmDecide', { name: nameOf(playerId) });
     if (!window.confirm(question)) return;
   }
@@ -124,7 +125,7 @@ function zoom(cardId) {
         <button class="art" :aria-label="t('table.lookCloser', { name: nameOf(entry.playerId) })" @click="zoom(entry.cardId)">
           <CardImg :card-id="entry.cardId" />
           <span v-if="results && results.imposterId === entry.playerId" class="stamp">{{ t('table.imposter') }}</span>
-          <span v-else-if="results && results.winnerId === entry.playerId" class="stamp favourite">{{ t('table.favourite') }}</span>
+          <span v-else-if="results && results.winnerId === entry.playerId" class="stamp favourite">{{ t(state.groupVotes ? 'table.mostVotes' : 'table.favourite') }}</span>
         </button>
         <figcaption>
           <strong class="who">{{ nameOf(entry.playerId) }}<span v-if="entry.playerId === state.you" class="muted"> {{ $t('common.youBracketed') }}</span></strong>

@@ -37,10 +37,12 @@ const judgingOptions = computed(() => {
   const off = state.value.noChooser;
   const described = {
     everyone: () => t('judging.everyone.text', { perVote: state.value.pointsPerVote }),
+    best: () => t('judging.best.text', { perBest: state.value.pointsPerBest }),
     chooser: () => t('judging.chooser.text', { correct: state.value.pointsChooserCorrect, fooled: state.value.pointsFooledChooser }),
     favourite: () => t('judging.favourite.text', { points: state.value.pointsFavourite }),
   };
-  return ['everyone', 'chooser', 'favourite'].map((mode) => {
+  // The two the whole table votes on first, then the two the word-chooser decides alone.
+  return ['everyone', 'best', 'chooser', 'favourite'].map((mode) => {
     const barred = off && NEEDS_CHOOSER.includes(mode);
     return { mode, title: t(`judging.${mode}.title`), text: barred ? t(`judging.${mode}.needsChooser`) : described[mode](), off: barred };
   });
@@ -50,6 +52,8 @@ const currentJudging = computed(() => judgingOptions.value.find((o) => o.mode ==
 // Turning the chooser off is out of reach while a style that needs one is picked, as those styles are while it is
 // off: the server refuses the pair either way round, and a tick box that sprang back would say nothing about why.
 const noChooserOff = computed(() => NEEDS_CHOOSER.includes(state.value.judging));
+// The last step of the "How it works" list: how this style settles the turn.
+const decidedBy = computed(() => `lobby.rule.${{ everyone: 'everyoneVotes', best: 'everyoneVotesBest', chooser: 'chooserDecides', favourite: 'favourite' }[state.value.judging]}`);
 // How long the game runs, in words: with a chooser it is counted in everybody's goes at the word, without one in rounds.
 const lengthWords = computed(() => ({
   times: t('lobby.times', { count: state.value.rounds }, state.value.rounds),
@@ -201,12 +205,11 @@ function toggleCategory(key) {
     <h3>{{ t('lobby.howItWorks') }}</h3>
     <ol>
       <li>{{ t(state.noChooser ? 'lobby.rule.wordRandom' : 'lobby.rule.word') }}</li>
-      <li v-if="state.judging === 'favourite'">{{ t('lobby.rule.everyoneSees') }}</li>
+      <li v-if="!state.hasImposter">{{ t('lobby.rule.everyoneSees') }}</li>
       <li v-else>{{ t(state.noChooser ? 'lobby.rule.oneInTheDarkAll' : 'lobby.rule.oneInTheDark', { hidden: t('table.hiddenWord') }) }}</li>
-      <li v-if="state.judging !== 'favourite'">{{ t('lobby.rule.bluff') }}</li>
+      <li v-if="state.hasImposter">{{ t('lobby.rule.bluff') }}</li>
       <li>{{ t('lobby.rule.reveal') }}</li>
-      <li v-if="state.judging === 'favourite'">{{ t('lobby.rule.favourite', { points: state.pointsFavourite }) }}</li>
-      <li v-else>{{ t(state.judging === 'chooser' ? 'lobby.rule.chooserDecides' : 'lobby.rule.everyoneVotes') }}</li>
+      <li>{{ t(decidedBy, { points: state.pointsFavourite }) }}</li>
     </ol>
   </section>
 </template>

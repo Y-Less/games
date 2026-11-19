@@ -10,14 +10,19 @@
 //               (changing their vote until the last vote is in).  The turn ends once everyone has voted.
 //   results     the imposter is revealed and points are awarded
 //
-// Three play styles (the 'judging' setting), chosen by the host in the lobby:
-//   'everyone'  every player votes.  The group is correct only if the imposter has strictly the most votes (a tie
-//               counts as wrong).  If correct, each player who voted for the imposter scores POINTS_PER_VOTE.  If
-//               wrong, the imposter scores POINTS_PER_VOTE for each other player who didn't vote for them.
-//   'chooser'   only the word-chooser votes.  If they spot the imposter the chooser scores
+// Four play styles (the 'judging' setting), chosen by the host in the lobby.  They are two questions crossed: is
+// somebody kept in the dark (IMPOSTER_JUDGING), and does the whole table decide or one player (VOTE_JUDGING)?
+//   'everyone'  hunt the imposter, the table voting.  The group is correct only if the imposter has strictly the
+//               most votes (a tie counts as wrong).  If correct, each player who voted for the imposter scores
+//               POINTS_PER_VOTE.  If wrong, the imposter scores POINTS_PER_VOTE for each other player who didn't
+//               vote for them.
+//   'chooser'   hunt the imposter, the word-chooser deciding alone.  If they spot the imposter the chooser scores
 //               CHOOSER_CORRECT_POINTS; if they are fooled the imposter scores CHOOSER_FOOLED_POINTS.
-//   'favourite' no imposter: everybody sees the word, and the chooser just picks the card they like best.  The
-//               player who played it scores FAVOURITE_POINTS.
+//   'best'      no imposter, the table voting: everybody sees the word and votes for the card they like best, and
+//               every vote a card is given scores POINTS_PER_BEST to whoever played it.  Nobody is bluffing, so
+//               there is nothing to be right or wrong about: a card several people liked simply scores several times.
+//   'favourite' no imposter, the word-chooser deciding alone: they pick the card they like best, and the player who
+//               played it scores FAVOURITE_POINTS.
 //
 // The no-chooser variant (the 'noChooser' setting, which the host ticks beside the play style): nobody types the
 // word.  It is picked at random from the same suggestions the chooser would have been offered, the 'word' phase
@@ -71,12 +76,17 @@ export const POINTS_PER_VOTE = 1;
 export const CHOOSER_CORRECT_POINTS = 1;
 export const CHOOSER_FOOLED_POINTS = 5;
 export const FAVOURITE_POINTS = 2;
-export const JUDGING_MODES = ['everyone', 'chooser', 'favourite'];
+/** What one vote for your card is worth in the 'best' style; several people liking it scores it several times. */
+export const POINTS_PER_BEST = 1;
+// In the order the lobby offers them: the two the table votes on, then the two the word-chooser decides alone.
+export const JUDGING_MODES = ['everyone', 'best', 'chooser', 'favourite'];
 /**
  * The play styles the whole table votes on, rather than one player deciding.  They are exactly the styles a game
  * with no word-chooser can be judged by: the deciding player in the others IS the word-chooser.
  */
-export const VOTE_JUDGING = ['everyone'];
+export const VOTE_JUDGING = ['everyone', 'best'];
+/** The play styles in which one player is kept from the word and has to bluff. */
+export const IMPOSTER_JUDGING = ['everyone', 'chooser'];
 /** How many rounds a game may run for (everybody chooses the word once a round), and how many unless the host says. */
 export const ROUNDS = { min: 1, max: 10, default: 2 };
 export const MIN_PLAYERS = 3;
@@ -700,8 +710,8 @@ function randomWord(room, rng) {
 function beginPicking(room, word, rng) {
   room.word = word;
   const candidates = cardPlayers(room);
-  // In the favourite style nobody is kept in the dark, so there is no imposter.
-  room.imposterId = room.judging === 'favourite' ? null : candidates[Math.floor(rng() * candidates.length)].id;
+  // In the best-card styles nobody is kept in the dark, so there is no imposter.
+  room.imposterId = IMPOSTER_JUDGING.includes(room.judging) ? candidates[Math.floor(rng() * candidates.length)].id : null;
   room.phase = 'picking';
 }
 
@@ -824,6 +834,7 @@ export function vote(room, id, targetId) {
 function resolveVotes(room) {
   if (room.judging === 'chooser') return resolveChooserVerdict(room);
   if (room.judging === 'favourite') return resolveFavourite(room);
+  if (room.judging === 'best') return resolveBest(room);
   const tally = Object.fromEntries(cardPlayers(room).map((p) => [p.id, 0]));
   for (const target of Object.values(room.votes)) tally[target]++;
 
@@ -890,6 +901,38 @@ function resolveFavourite(room) {
 }
 
 /**
+ * Best-card style: everybody votes for the card they like best, and every vote a card is given is worth
+ * POINTS_PER_BEST to whoever played it.  Nobody was bluffing, so there is nothing to be right or wrong about and
+ * `groupCorrect` is null, as in the favourite style; a card several people liked simply scores several times, which
+ * is also why there is no tie to break.
+ *
+ * `winnerId` is the one card the table liked best, for the stamp on it and the scoreboard's remark, and is null
+ * when two cards drew: nothing stood out, and the points have already been given out vote by vote.
+ *
+ * @param {object} room  the room to change
+ * @returns {void}
+ * Side effects: as resolveVotes.
+ */
+function resolveBest(room) {
+  const played = cardPlayers(room);
+  const tally = Object.fromEntries(played.map((p) => [p.id, 0]));
+  for (const target of Object.values(room.votes)) tally[target]++;
+
+  const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
+  for (const p of played) deltas[p.id] = tally[p.id] * POINTS_PER_BEST;
+  for (const p of room.players) p.score += deltas[p.id];
+
+  // Read off the players rather than the table's keys, which are text: the id itself is a number for a person.
+  const most = Math.max(0, ...played.map((p) => tally[p.id]));
+  const leaders = most > 0 ? played.filter((p) => tally[p.id] === most) : [];
+  const winnerId = leaders.length === 1 ? leaders[0].id : null;
+
+  const notes = turnNotes(room, { judging: 'best', winnerId });
+  room.results = { judging: 'best', imposterId: null, winnerId, groupCorrect: null, tally, deltas, votes: { ...room.votes } };
+  completeTurn(room, notes);
+}
+
+/**
  * Short public remarks for the scoreboard: who chose the word, who was the imposter and how it went.
  *
  * @param {object} room  not changed
@@ -908,6 +951,9 @@ function turnNotes(room, { judging, groupCorrect, winnerId }) {
   if (judging === 'favourite') {
     // The chooser never plays a card, so the only remark the winner can already have is the chooser's own.
     if (winnerId !== undefined && winnerId !== null) notes[winnerId] = notes[winnerId] ? msg('notes.chooserCardPicked') : msg('notes.cardPicked');
+  } else if (judging === 'best') {
+    // Nobody is marked out when two cards drew, which is what a winner of null means here.
+    if (winnerId !== undefined && winnerId !== null) notes[winnerId] = msg('notes.mostVotes');
   } else if (room.imposterId !== null) {
     notes[room.imposterId] = msg(groupCorrect ? 'notes.imposterCaught' : 'notes.imposterFooledAll');
     if (judging === 'chooser') notes[room.chooserId] = msg(groupCorrect ? 'notes.chooserSpotted' : 'notes.chooserFooled');
@@ -1250,7 +1296,12 @@ export function viewFor(room, id, { online = () => true } = {}) {
     pointsChooserCorrect: CHOOSER_CORRECT_POINTS,
     pointsFooledChooser: CHOOSER_FOOLED_POINTS,
     pointsFavourite: FAVOURITE_POINTS,
+    pointsPerBest: POINTS_PER_BEST,
     judging: room.judging,
+    // The two questions the styles are crossed from, so that the client asks what a turn is like rather than
+    // keeping its own list of which styles are which.
+    groupVotes: VOTE_JUDGING.includes(room.judging), // the whole table decides, and may change its mind until the last vote
+    hasImposter: IMPOSTER_JUDGING.includes(room.judging), // one player is kept from the word and has to bluff
     noChooser: room.noChooser, // true: nobody chose the word, and everybody plays a card
     categories: categoriesView(room),
     availableCards: availableIds(room).length,

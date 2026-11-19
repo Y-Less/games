@@ -33,7 +33,7 @@ export function statusFor(state, { isHost = false } = {}) {
       return {
         headline: msg('status.chooseWord'),
         mine: true,
-        lines: [muted(state.judging === 'favourite' ? msg('status.chooseWordFavourite') : msg('status.chooseWordImposter', { hidden: msg('table.hiddenWord') }))],
+        lines: [muted(state.hasImposter ? msg('status.chooseWordImposter', { hidden: msg('table.hiddenWord') }) : msg('status.chooseWordFavourite'))],
       };
     }
     return { headline: msg('status.choosing', { name: chooserName }), mine: false, lines: [muted(msg('status.lookAtHand'))] };
@@ -47,16 +47,20 @@ export function statusFor(state, { isHost = false } = {}) {
     if (inGame && !state.playsCard) return { headline: waiting ?? msg('status.everyonePlayed'), mine: false, lines: [muted(msg('status.yourWord'))] };
     if (state.myPick !== null) return { headline: msg('status.cardPlayed'), mine: false, lines: [muted(msg('status.canSwap')), ...(waiting ? [waiting] : [])] };
     if (state.wordHidden) return { headline: msg('status.playInTheDark'), mine: true, lines: [muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])] };
+    // What becomes of the cards: somebody is bluffing among them, the chooser will pick one, or the table will vote.
+    const whatFollows = state.hasImposter ? msg('status.oneInTheDark') : msg(state.groupVotes ? 'status.tableVotesBest' : 'status.chooserPicks');
     return {
       headline: msg('status.playCard'),
       mine: true,
-      lines: [muted(state.judging === 'favourite' ? msg('status.chooserPicks') : msg('status.oneInTheDark')), muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])],
+      lines: [muted(whatFollows), muted(msg('status.clickToPlay')), ...(waiting ? [waiting] : [])],
     };
   }
 
   if (state.phase === 'voting') {
-    if (state.judging === 'favourite' || state.judging === 'chooser') {
-      const fav = state.judging === 'favourite';
+    if (!state.groupVotes) {
+      // One player decides, and that player is the word-chooser: either picking the card they like best, or saying
+      // who they think was bluffing.
+      const fav = !state.hasImposter;
       if (state.isChooser) {
         return {
           headline: state.myVote === null ? msg(fav ? 'status.pickFavourite' : 'status.decide') : msg(fav ? 'status.picked' : 'status.decided'),
@@ -82,10 +86,19 @@ export function statusFor(state, { isHost = false } = {}) {
         ],
       };
     }
+    // The whole table votes: for who was bluffing, or, where nobody was, for the card they like best.
+    const stillToVote = waitingOnVotes.length ? [msg('status.stillToVote', { names: waitingOnVotes })] : [];
+    if (!state.hasImposter) {
+      return {
+        headline: msg(state.myVote === null ? 'status.pickBest' : 'status.bestIn'),
+        mine: state.myVote === null,
+        lines: [...stillToVote, muted(msg('status.explainBest', { perBest: state.pointsPerBest }))],
+      };
+    }
     return {
       headline: msg(state.myVote === null ? 'status.vote' : 'status.voteIn'),
       mine: state.myVote === null,
-      lines: [...(waitingOnVotes.length ? [msg('status.stillToVote', { names: waitingOnVotes })] : []), muted(msg('status.explainVote'))],
+      lines: [...stillToVote, muted(msg('status.explainVote'))],
     };
   }
 
@@ -99,6 +112,18 @@ export function statusFor(state, { isHost = false } = {}) {
         headline: msg('status.favouritePicked', { chooser: nameOf(state.chooserId), winner: nameOf(r.winnerId) }),
         mine: false,
         lines: [msg('status.scores', { name: nameOf(r.winnerId), points: state.pointsFavourite }), muted(msg('status.discardAndDraw', { handSize: state.handSize }))],
+      };
+    }
+    if (r.judging === 'best') {
+      // Nobody was bluffing, so the turn is read off the table: who the table settled on, then what each card earned.
+      const scored = players.filter((p) => gained(p.id) > 0);
+      return {
+        headline: r.winnerId === null || r.winnerId === undefined ? msg('status.bestTie') : msg('status.bestPicked', { name: nameOf(r.winnerId) }),
+        mine: false,
+        lines: [
+          ...scored.map((p) => msg('status.scoresVotes', { name: p.name, points: gained(p.id), count: r.tally?.[p.id] ?? 0 })),
+          muted(msg('status.discardAndDraw', { handSize: state.handSize })),
+        ],
       };
     }
     if (r.judging === 'chooser') {

@@ -7,7 +7,8 @@
 //        (word is null when this player is the imposter and cannot see the clue)
 //   vote({ word, table: [{ playerId, cardId }], targets: string[], me, imposter: boolean,
 //          chooser: boolean, judging, cards, scores: { [playerId]: number } }, rng)       -> one of `targets`
-//        (spotting the imposter; in the 'favourite' style it is the chooser picking the best card)
+//        (spotting the imposter; in the 'favourite' and 'best' styles it is instead picking the card that fits the
+//        word best, which `picksBest` in util.js asks)
 //
 // `cards` is the card metadata (see cards.js): categories only, since that is all the site knows about its cards.
 // Depends on shared/ai.js (defineAIs validates and registers them) and the five AI files below; it only wires them up.

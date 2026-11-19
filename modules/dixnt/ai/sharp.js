@@ -3,7 +3,7 @@
 // at random, so several sharp bots in one game all accuse the same person (the group needs a strict plurality to
 // catch the imposter).  A sharp bot that was itself the imposter does the same, which steers the vote onto a decoy.
 // Depends on ./util.js (fit scoring, oddness of table cards); uses the caller's rng only for clue choice and blind play.
-import { best, clueStrength, fitter, oddness, pick } from './util.js';
+import { best, clueStrength, fitter, oddness, pick, picksBest } from './util.js';
 
 /** Comparator ordering player ids ascending, so every sharp bot sees targets in the same order and breaks ties the same way. */
 const byId = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
@@ -40,7 +40,7 @@ export const sharp = {
   },
   /**
    * Accuses the card that fits the clue worst and sits apart from the rest of the table (deterministic ties by id);
-   * in the favourite style picks the best fit.
+   * where the vote is about which card is best, picks the best fit.
    * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the turn as the voter sees it
    * @returns {string} a player id from `targets`
    * Side effects: none.
@@ -49,7 +49,7 @@ export const sharp = {
     const cardOf = Object.fromEntries(table.map((row) => [row.playerId, row.cardId]));
     const fit = fitter(word, cards);
     const ordered = [...targets].sort(byId);
-    if (judging === 'favourite') return best(ordered, (id) => (fit ? fit(cardOf[id]) : 0));
+    if (picksBest(judging)) return best(ordered, (id) => (fit ? fit(cardOf[id]) : 0));
     const odd = oddness(table, cards);
     return best(ordered, (id) => (fit ? 2 * (1 - fit(cardOf[id])) : 0) + odd[id]);
   },

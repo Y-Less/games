@@ -3,7 +3,7 @@
 // single action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { JUDGING_MODES, MIN_PLAYERS, VOTE_JUDGING } from './game.js';
+import { IMPOSTER_JUDGING, JUDGING_MODES, MIN_PLAYERS, VOTE_JUDGING } from './game.js';
 import { rulesWith } from './harness.js';
 import { seeded } from '../../shared/testkit.js';
 
@@ -59,7 +59,8 @@ function check(game, room, memory, where) {
     assert.equal(room.noChooser && room.phase === 'word', false, `${note}: a game with no chooser never waits for a word`);
   }
   if (['picking', 'voting', 'results'].includes(room.phase)) {
-    if (room.judging === 'favourite') assert.equal(room.imposterId, null);
+    // Only the imposter styles keep somebody from the word; the best-card ones have nobody to find.
+    if (!IMPOSTER_JUDGING.includes(room.judging)) assert.equal(room.imposterId, null, `${note}: nobody should be in the dark`);
     else assert.ok(game.playerOf(room, room.imposterId) && plays.has(room.imposterId), `${note}: the imposter is a current card player`);
   }
   if (room.phase === 'voting') assert.equal(room.tableOrder.length, game.cardPlayers(room).length, `${note}: every card is on the table`);

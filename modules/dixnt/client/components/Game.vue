@@ -46,6 +46,11 @@ const stageOf = (p) => {
   if (phase === 'voting') return t(p.hasVoted ? 'popup.hasVoted' : 'popup.stillToVote');
   return p.isChooser ? t('popup.theChooser') : '';
 };
+// Which card the table settled on, over the scores, or that none of them stood out.
+const bestReveal = computed(() => {
+  const winnerId = results.value?.winnerId;
+  return winnerId === null || winnerId === undefined ? t('reveal.bestTie') : t('reveal.best', { name: nameOf(winnerId) });
+});
 // How the turn turned out, over the scores: whether the chooser's own guess was right, or whether the group's was.
 const verdict = computed(() => {
   const right = results.value?.groupCorrect;
@@ -88,6 +93,7 @@ const scoresWorthStopping = computed(() => Boolean(state.value.results?.roundOve
         <template #round>
           <p v-if="results" class="summary" role="status">
             <template v-if="results.judging === 'favourite'">{{ t('reveal.favourite', { chooser: nameOf(state.chooserId), winner: nameOf(results.winnerId) }) }}</template>
+            <template v-else-if="results.judging === 'best'">{{ bestReveal }}</template>
             <template v-else>
               {{ t('reveal.imposter', { name: nameOf(results.imposterId) }) }}
               {{ verdict }}

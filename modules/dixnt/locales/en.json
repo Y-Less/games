@@ -42,6 +42,7 @@
       "reveal": "The cards and the word are revealed. Talk it through and justify your choices.",
       "favourite": "Then the chooser picks their favourite card, and that player scores {points}.",
       "chooserDecides": "Then the vote: the chooser decides who they think was in the dark.",
+      "everyoneVotesBest": "Then the vote: everyone votes for the card they like best, and every vote one gets is a point to whoever played it.",
       "everyoneVotes": "Then the vote: everyone votes for who they think was in the dark."
     }
   },
@@ -50,6 +51,11 @@
       "title": "Everyone votes",
       "short": "Everyone votes",
       "text": "Everybody votes for who was in the dark. If the group spots them, each player who voted for them scores {perVote}. If the group is fooled, the imposter scores {perVote} for every player who missed them."
+    },
+    "best": {
+      "title": "Everyone votes for the best card (no imposter)",
+      "short": "Everyone votes for the best",
+      "text": "Everybody sees the word and nobody has to bluff. Everyone votes for the card they like best, and every vote a card gets scores {perBest} for whoever played it."
     },
     "chooser": {
       "title": "Only the chooser decides",
@@ -73,6 +79,7 @@
   "notes": {
     "chooser": "chooser",
     "cardPicked": "card picked",
+    "mostVotes": "most votes",
     "chooserCardPicked": "chooser, card picked",
     "imposterCaught": "imposter, caught",
     "imposterFooledAll": "imposter, fooled all",
@@ -81,6 +88,8 @@
   },
   "reveal": {
     "favourite": "{chooser} picked {winner}’s card.",
+    "best": "{name}’s card was the table’s favourite.",
+    "bestTie": "No card stood out.",
     "imposter": "{name} was the imposter.",
     "chooserSpotted": "The chooser spotted them.",
     "chooserFooled": "The chooser was fooled.",
@@ -124,6 +133,7 @@
     "lookCloser": "Look closer at {name}'s card",
     "imposter": "Imposter",
     "favourite": "Favourite",
+    "mostVotes": "Most votes",
     "vote": "Vote",
     "pickThis": "Pick this one",
     "yourPick": "Your pick",
@@ -152,6 +162,13 @@
     "away": "Away: {names}.",
     "chooseWord": "Your turn: choose a word or phrase.",
     "chooseWordFavourite": "Everyone will see it. Pick something open to interpretation.",
+    "tableVotesBest": "Everyone will vote for the card they like best.",
+    "pickBest": "Your turn: vote for the card you like best.",
+    "bestIn": "Your vote is in. You can still change it.",
+    "explainBest": "Explain why your card fits the word. Every vote your card gets scores you {perBest}.",
+    "bestPicked": "{name}’s card got the most votes.",
+    "bestTie": "No card got the most votes.",
+    "scoresVotes": "{name} scores {points} for {count} vote. | {name} scores {points} for {count} votes.",
     "chooseWordImposter": "Everyone else will see it, except one random player who sees {hidden} and has to bluff. Pick something open to interpretation.",
     "choosing": "{name} is choosing a word…",
     "lookAtHand": "While you wait, have a look at your hand.",
@@ -203,6 +220,8 @@
     "decided": "{name} made the choice.",
     "allOnTable": "All the cards are on the table.",
     "favourite": "{chooser} picked {winner}’s card.",
+    "best": "{name}’s card got the most votes.",
+    "bestTie": "No card got the most votes.",
     "imposterCaught": "{name} was the imposter. They were found out.",
     "imposterFooled": "{name} was the imposter. They fooled the table."
   },

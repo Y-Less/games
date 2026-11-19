@@ -46,7 +46,9 @@ export function tallyTurn(counterOf, { pickers, votes, results }) {
     if (counters) bump(counters, key);
   };
   for (const id of pickers) count(id, 'cardsPlayed');
-  if (results.judging === 'favourite') {
+  // The best-card styles: nobody was bluffing, so a vote is praise rather than an accusation and none of the
+  // imposter counters apply.  Having the table settle on your card counts the same as the chooser picking it.
+  if (results.judging === 'favourite' || results.judging === 'best') {
     if (results.winnerId !== null && results.winnerId !== undefined) count(results.winnerId, 'favouritePicks');
     return;
   }

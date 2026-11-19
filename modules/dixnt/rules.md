@@ -18,7 +18,7 @@ A **turn** is one player's go as the chooser, and a **round** is everyone having
 
 ## Play styles
 
-The host picks one of three styles in the lobby.
+The host picks one of four styles in the lobby.  They are two questions crossed: is somebody kept in the dark, and does the whole table decide or just the chooser?
 
 ### Everyone votes
 
@@ -32,6 +32,12 @@ The host picks one of three styles in the lobby.
 - Only the chooser guesses who was in the dark, and that guess ends the turn at once.
 - If the chooser is right, they score 1 point.
 - If the chooser is fooled, the imposter scores 5 points.
+
+### Everyone votes for the best card
+
+- Nobody is kept in the dark: everyone sees the word, and nobody has to bluff.
+- Everyone votes for the card they like best.  You cannot vote for your own, and you can change your mind until the last vote is in.
+- Every vote a card is given scores 1 point to whoever played it, so a card several people liked scores several times.  There is nothing to be right or wrong about, and nothing to settle if two cards draw.
 
 ### Favourite card
 
@@ -47,7 +53,7 @@ The host can also turn the chooser off altogether, with the tick box beside the 
 - **Everybody** plays a card, the player whose turn it is included, so there is one more card on the table than usual.
 - One random player still sees ??? instead of the word and still has to bluff.
 
-It goes with the styles the whole table votes on, and with those alone.  "Only the chooser decides" and "Favourite card" are both one player deciding, and that player is the word-chooser, so neither can be played this way: the game cannot be set to both at once, whichever you pick first.
+It goes with the two styles the whole table votes on — "Everyone votes" and "Everyone votes for the best card" — and with those alone.  "Only the chooser decides" and "Favourite card" are both one player deciding, and that player is the word-chooser, so neither can be played this way: the game cannot be set to both at once, whichever you pick first.
 
 Nobody has a part of their own in such a turn, so nobody is marked out at the table: the word arrives, everybody plays, everybody votes.
 

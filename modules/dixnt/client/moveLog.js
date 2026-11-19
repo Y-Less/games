@@ -68,7 +68,7 @@ function duringTurn(prev, next) {
   if (!prev || prev.phase !== next.phase || !['picking', 'voting'].includes(next.phase)) return [];
   const voting = next.phase === 'voting';
   const flag = voting ? 'hasVoted' : 'hasPlayed';
-  const key = voting ? (next.judging === 'everyone' ? 'log.voted' : 'log.decided') : 'log.played';
+  const key = voting ? (next.groupVotes ? 'log.voted' : 'log.decided') : 'log.played';
   return next.players
     .filter((p) => {
       const was = prev.players.find((q) => q.id === p.id);
@@ -90,7 +90,9 @@ function turnOutcome(prev, next, name) {
   if (prev?.phase === 'picking' && next.phase === 'voting') out.push(msg('log.allOnTable'));
   if (prev?.phase === 'voting' && next.phase === 'results' && next.results) {
     const r = next.results;
+    const won = r.winnerId !== null && r.winnerId !== undefined;
     if (r.judging === 'favourite') out.push(msg('log.favourite', { chooser: name(next.chooserId), winner: name(r.winnerId) }));
+    else if (r.judging === 'best') out.push(won ? msg('log.best', { name: name(r.winnerId) }) : msg('log.bestTie'));
     else out.push(msg(r.groupCorrect ? 'log.imposterCaught' : 'log.imposterFooled', { name: name(r.imposterId) }));
   }
   // Who won, on the step the game finishes (shared/logDiff.js); nothing for a state that arrives already finished.

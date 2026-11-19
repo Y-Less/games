@@ -26,6 +26,8 @@ function make({ players, me = 'ann', host = 'ann', maxPlayers = 12, settings = {
     pointsChooserCorrect: 1,
     pointsFooledChooser: 5,
     pointsFavourite: 2,
+    pointsPerBest: 1,
+    hasImposter: true,
     ...settings,
   };
   const store = reactive({ state });
@@ -79,7 +81,7 @@ describe('Dixnt lobby computer players', () => {
   it('sends the whole settings message when the host changes one', async () => {
     const { wrapper, send } = make({ players: [person('ann', 'Ann'), person('bob', 'Bob'), bot('b1', 'Ada')] });
     const styles = wrapper.findAll('input[name="judging"]');
-    await styles[1].trigger('change');
+    await styles.find((r) => r.attributes('value') === 'chooser').trigger('change');
     expect(send).toHaveBeenLastCalledWith('settings', { judging: 'chooser' });
     const numbers = wrapper.findAll('input.num');
     numbers[0].element.value = '6';
@@ -96,18 +98,20 @@ describe('Dixnt lobby computer players', () => {
   // player decides are that player being the word-chooser, so they are put out of reach while it is on rather than
   // left to be refused by the server.
   const table3 = () => [person('ann', 'Ann'), person('bob', 'Bob'), bot('b1', 'Ada')];
-  const judgingInputs = (w) => w.findAll('input[name="judging"]').map((r) => r.attributes('disabled') !== undefined);
+  /** Which play styles the host may pick right now, as { mode: barred }, named rather than counted. */
+  const barred = (w) => Object.fromEntries(w.findAll('input[name="judging"]').map((r) => [r.attributes('value'), r.attributes('disabled') !== undefined]));
 
   it('lets the host turn the chooser off, and takes the one-decider styles off the table while it is', async () => {
     const { wrapper, send } = make({ players: table3() });
     const noChooser = () => wrapper.find('.option input[type="checkbox"]');
-    expect(judgingInputs(wrapper)).toEqual([false, false, false]);
+    expect(barred(wrapper)).toEqual({ everyone: false, best: false, chooser: false, favourite: false });
     noChooser().element.checked = true;
     await noChooser().trigger('change');
     expect(send).toHaveBeenLastCalledWith('settings', { noChooser: true });
 
     const { wrapper: on } = make({ players: table3(), settings: { noChooser: true } });
-    expect(judgingInputs(on), 'everyone votes stays; the chooser and favourite styles do not').toEqual([false, true, true]);
+    expect(barred(on), 'the two the table votes on stay; the two one player decides do not')
+      .toEqual({ everyone: false, best: false, chooser: true, favourite: true });
     expect(on.text()).toContain('this one needs the chooser');
     expect(on.text()).toContain('a word or phrase is picked at random');
     expect(on.text()).toContain("times each player's turn comes round");
@@ -117,8 +121,17 @@ describe('Dixnt lobby computer players', () => {
     for (const judging of ['chooser', 'favourite']) {
       const { wrapper } = make({ players: table3(), settings: { judging } });
       expect(wrapper.find('.option input[type="checkbox"]').attributes('disabled'), judging).toBeDefined();
-      expect(judgingInputs(wrapper), 'and no style is barred while there is a chooser').toEqual([false, false, false]);
+      expect(Object.values(barred(wrapper)).some(Boolean), 'and no style is barred while there is a chooser').toBe(false);
     }
+  });
+
+  it('offers the best-card style beside the rest, and says what a vote there is worth', () => {
+    const { wrapper, send } = make({ players: table3() });
+    expect(Object.keys(barred(wrapper)), 'the two the table votes on come first').toEqual(['everyone', 'best', 'chooser', 'favourite']);
+    expect(wrapper.text()).toContain('Everyone votes for the best card');
+    expect(wrapper.text()).toContain('every vote a card gets scores 1');
+    wrapper.findAll('input[name="judging"]')[1].trigger('change');
+    expect(send).toHaveBeenLastCalledWith('settings', { judging: 'best' });
   });
 
   it('shows nobody but the host any bot controls', () => {

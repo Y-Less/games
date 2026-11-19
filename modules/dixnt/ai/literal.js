@@ -1,7 +1,7 @@
 // Takes the clue at face value: plays the card whose category suits the word best, and suspects the card that
 // suits it least.  Knows nothing about the other players, and bluffs at random when it cannot see the word.
 // Depends on ./util.js for the clue-to-category fit scoring; uses only the caller's rng.
-import { best, clueStrength, fitter, pick } from './util.js';
+import { best, clueStrength, fitter, pick, picksBest } from './util.js';
 
 export const literal = {
   id: 'literal',
@@ -28,7 +28,7 @@ export const literal = {
     return fit ? best(hand, fit, rng) : pick(hand, rng);
   },
   /**
-   * Accuses the player whose card fits the clue worst (in the favourite style, picks the best fit instead).
+   * Accuses the player whose card fits the clue worst (where the vote is about which card is best, picks the best fit instead).
    * @param {{ word: string, table: { playerId: string, cardId: number }[], targets: string[], judging: string, cards: object }} ctx  the turn as the voter sees it
    * @param {() => number} rng  random source for ties and fallback
    * @returns {string} a player id from `targets`
@@ -38,7 +38,7 @@ export const literal = {
     const fit = fitter(word, cards);
     if (!fit) return pick(targets, rng);
     const cardOf = Object.fromEntries(table.map((row) => [row.playerId, row.cardId]));
-    const sign = judging === 'favourite' ? 1 : -1; // favourite: the best fit; otherwise the worst fit is the bluffer
+    const sign = picksBest(judging) ? 1 : -1; // asked for the best card, the best fit; hunting, the worst fit is the bluffer
     return best(targets, (id) => sign * fit(cardOf[id]), rng);
   },
 };

@@ -16,6 +16,12 @@ const lineWords = (line) => words(line?.tone ? line.text : line);
 
 // ---- a state shaped like the server's view ----
 const player = (id, name, extra = {}) => ({ id, slot: `s-${id}`, name, score: 0, turns: 0, online: true, bot: false, ai: null, isChooser: false, plays: true, hasPlayed: false, hasVoted: false, placement: null, winner: false, ...extra });
+// A play style, as the server sends it: the style's name and the two things the client asks about a turn (whether
+// the whole table votes, and whether one player is kept from the word).
+const EVERYONE = { judging: 'everyone', groupVotes: true, hasImposter: true };
+const BEST = { judging: 'best', groupVotes: true, hasImposter: false };
+const CHOOSER = { judging: 'chooser', groupVotes: false, hasImposter: true };
+const FAVOURITE = { judging: 'favourite', groupVotes: false, hasImposter: false };
 /** The usual table of four: Ann (who chooses the word, and so plays no card), Bob, and two computer players. */
 const table = () => [player('ann', 'Ann', { isChooser: true, plays: false }), player('bob', 'Bob'), player('cy', 'Cy', { bot: true }), player('di', 'Di', { bot: true })];
 /** The same table once the game is over, won by the players named (who share first place; the rest share second). */
@@ -41,7 +47,10 @@ function view(extra = {}, { id: you = 'ann', ...me } = {}) {
     pointsChooserCorrect: 1,
     pointsFooledChooser: 5,
     pointsFavourite: 2,
+    pointsPerBest: 1,
     judging: 'everyone',
+    groupVotes: true, // the server works both of these out from `judging`; a test that names a style sets them too
+    hasImposter: true,
     noChooser: false,
     categories: [],
     availableCards: 400,
@@ -152,8 +161,8 @@ describe('Dixnt Status words', () => {
   it('covers voting by style and the results', () => {
     expect(words(statusFor(asBob({ phase: 'voting' })).headline)).toMatch(/vote for the player/);
     expect(words(statusFor(asBob({ phase: 'voting' }, { myVote: 'cy' })).headline)).toMatch(/vote is in/);
-    expect(words(statusFor(view({ phase: 'voting', judging: 'favourite' }, { myVote: null })).headline)).toMatch(/pick the card you like best/);
-    expect(words(statusFor(asBob({ phase: 'voting', judging: 'chooser' })).headline)).toBe('Ann will decide who was in the dark.');
+    expect(words(statusFor(view({ phase: 'voting', ...FAVOURITE }, { myVote: null })).headline)).toMatch(/pick the card you like best/);
+    expect(words(statusFor(asBob({ phase: 'voting', ...CHOOSER })).headline)).toBe('Ann will decide who was in the dark.');
     const results = { judging: 'everyone', imposterId: 'cy', groupCorrect: true, votes: { bob: 'cy' }, tally: { cy: 1, ann: 0, bob: 0, di: 0 }, deltas: {} };
     const done = statusFor(view({ phase: 'results', results }));
     expect(words(done.headline)).toBe('Cy was the imposter!');
@@ -173,6 +182,26 @@ describe('Dixnt Status words', () => {
     // with a chooser they would have been left out of the list altogether.
     const waiting = statusFor(turn({ players: all.map((p) => (p.id === 'bob' ? { ...p, hasPlayed: true } : p)) }, { id: 'bob', myPick: 3 }));
     expect(waiting.lines.map(lineWords).join(' ')).toContain('Waiting for Ann, Cy and Di');
+  });
+
+  // The best-card style crosses the other way from the favourite one: no imposter, but the whole table voting, so
+  // the words have to follow whether there is somebody to find and who decides, not the style's name.
+  it('asks the table for the best card, and reads the turn back vote by vote', () => {
+    const picking = statusFor(asBob({ ...BEST, phase: 'picking' }));
+    expect(picking.lines.map(lineWords).join(' ')).toContain('Everyone will vote for the card they like best');
+    expect(picking.lines.map(lineWords).join(' ')).not.toContain('One player cannot see this word');
+    const voting = statusFor(asBob({ ...BEST, phase: 'voting' }, { myVote: null }));
+    expect(words(voting.headline)).toMatch(/vote for the card you like best/);
+    expect(voting.mine).toBe(true);
+    expect(voting.lines.map(lineWords).join(' ')).toContain('Every vote your card gets scores you 1');
+    const results = { ...BEST, imposterId: null, winnerId: 'bob', groupCorrect: null, tally: { bob: 2, cy: 1, di: 0 }, deltas: { bob: 2, cy: 1 }, votes: {} };
+    const done = statusFor(view({ ...BEST, phase: 'results', results }));
+    expect(words(done.headline)).toBe('Bob’s card got the most votes.');
+    expect(done.lines.map(lineWords).join(' ')).toContain('Bob scores 2 for 2 votes');
+    expect(done.lines.map(lineWords).join(' ')).toContain('Cy scores 1 for 1 vote');
+    // Two cards drawing is not a winner, and the turn says so rather than naming nobody.
+    const drawn = statusFor(view({ ...BEST, phase: 'results', results: { ...results, winnerId: null } }));
+    expect(words(drawn.headline)).toBe('No card got the most votes.');
   });
 
   it('names the winner at the end, with the way on for the host and for the others', () => {
@@ -201,6 +230,9 @@ describe('Dixnt move log', () => {
     expect(stepped(voted, results)).toEqual(['Di was the imposter. They fooled the table.']);
     const favourite = view({ phase: 'results', results: { judging: 'favourite', winnerId: 'bob' } });
     expect(stepped(voted, favourite)).toEqual(['Ann picked Bob’s card.']);
+    const best = view({ phase: 'results', results: { judging: 'best', winnerId: 'bob' } });
+    expect(stepped(voted, best)).toEqual(['Bob’s card got the most votes.']);
+    expect(stepped(voted, view({ phase: 'results', results: { judging: 'best', winnerId: null } }))).toEqual(['No card got the most votes.']);
   });
 
   // With no chooser a turn opens straight on the cards, so the line that announces it hangs on the turn's number
@@ -394,9 +426,10 @@ describe('Dixnt pop-ups', () => {
     for (const state of [
       view({ phase: 'word' }), // the chooser, with the whole table waiting on them
       asBob({ phase: 'picking' }, { myPick: null }),
-      asBob({ phase: 'voting', judging: 'everyone' }, { myVote: null }),
-      view({ phase: 'voting', judging: 'favourite' }, { isChooser: true, myVote: null }),
-      view({ phase: 'voting', judging: 'chooser' }, { isChooser: true, myVote: null }),
+      asBob({ phase: 'voting', ...EVERYONE }, { myVote: null }),
+      asBob({ phase: 'voting', ...BEST }, { myVote: null }),
+      view({ phase: 'voting', ...FAVOURITE }, { isChooser: true, myVote: null }),
+      view({ phase: 'voting', ...CHOOSER }, { isChooser: true, myVote: null }),
     ]) {
       const game = await show(state);
       expect(popups()).toHaveLength(0);
