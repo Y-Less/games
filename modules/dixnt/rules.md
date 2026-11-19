@@ -51,7 +51,7 @@ The host can also turn the chooser off altogether, with the tick box beside the 
 
 - Nobody types a word.  One is picked at random for the whole table, and the turn begins with it already chosen.
 - **Everybody** plays a card, the player whose turn it is included, so there is one more card on the table than usual.
-- One random player still sees ??? instead of the word and still has to bluff.
+- The style still decides the rest: with "Everyone votes", one random player sees ??? instead of the word and has to bluff, exactly as before; with "Everyone votes for the best card", nobody is kept from it and nobody bluffs.
 
 It goes with the two styles the whole table votes on — "Everyone votes" and "Everyone votes for the best card" — and with those alone.  "Only the chooser decides" and "Favourite card" are both one player deciding, and that player is the word-chooser, so neither can be played this way: the game cannot be set to both at once, whichever you pick first.
 

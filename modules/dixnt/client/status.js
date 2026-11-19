@@ -163,10 +163,13 @@ export function statusFor(state, { isHost = false } = {}) {
   return { headline: '', mine: false, lines: [] };
 }
 
+/** The play styles this knows a name for; one it does not comes back as it is rather than as a missing message. */
+const NAMED_STYLES = ['everyone', 'best', 'chooser', 'favourite'];
+
 /**
  * Names a judging style for the Status facts, as a message (an unknown style comes back as it is).
- * @param {string} judging  'everyone', 'chooser', or 'favourite'.
- * @returns {object | string} The message to show, or the raw style if it is not one of the three.
+ * @param {string} judging  'everyone', 'best', 'chooser', or 'favourite'.
+ * @returns {object | string} The message to show, or the raw style if it is not one of the four.
  * Side effects: none.
  */
-export const styleName = (judging) => (['everyone', 'chooser', 'favourite'].includes(judging) ? msg(`judging.${judging}.short`) : judging);
+export const styleName = (judging) => (NAMED_STYLES.includes(judging) ? msg(`judging.${judging}.short`) : judging);

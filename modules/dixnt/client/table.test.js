@@ -211,6 +211,12 @@ describe('Dixnt Status words', () => {
     expect(over(false).lines.map(lineWords).join(' ')).toMatch(/Waiting for the host/);
     expect(words(styleName('favourite'))).toBe('Favourite card');
   });
+
+  // The facts line shows the style by name, so a style this does not know would be written out raw.
+  it('has a name for every play style the lobby offers', () => {
+    expect(['everyone', 'best', 'chooser', 'favourite'].map((style) => words(styleName(style))))
+      .toEqual(['Everyone votes', 'Everyone votes for the best', 'Only the chooser decides', 'Favourite card']);
+  });
 });
 
 describe('Dixnt move log', () => {

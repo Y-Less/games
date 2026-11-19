@@ -63,7 +63,7 @@ many rounds the host set the game to run for.  Every completed turn is appended 
 in `rooms.json`):
 `{ label, deltas: { playerId: points }, notes: { playerId: note } }`, where `label` and each `note` are **messages**
 (`{ key, params? }`, see `shared/messages.js`), never English: `msg('turn.label', { n })` or `msg('turn.earlier')`
-for the label, and one of `notes.chooser`, `notes.cardPicked`, `notes.chooserCardPicked`, `notes.imposterCaught`,
+for the label, and one of `notes.chooser`, `notes.cardPicked`, `notes.mostVotes`, `notes.chooserCardPicked`, `notes.imposterCaught`,
 `notes.imposterFooledAll`, `notes.chooserSpotted`, `notes.chooserFooled` for a note. `ScoreBoard` and `ScoreTable`
 put them into the player's language.
 Abandoned (skipped) turns are not recorded and do not use up a number.  Every player's view carries the standard
@@ -136,8 +136,8 @@ the length) is Dixnt's own, in
   as connected.
 - **Playing.** `server.js` plays them after a random wait from `DIXNT_BOT_DELAY` (`min-max` milliseconds, default
   `600-1400`; the tests use `0-3` and the UI tests `0-5`), one move per timer, via `Game.pendingBotAction()` and
-  `runBotAction()`: the chooser's word, every card, and every vote the judging style asks for (everyone, the chooser
-  only, or the chooser's favourite card).  Every decision is made from that seat's own `viewFor`, so a bot sees only
+  `runBotAction()`: the chooser's word, every card, and every vote the judging style asks for (the whole table's, or
+  the chooser's alone, naming the imposter or the best card).  Every decision is made from that seat's own `viewFor`, so a bot sees only
   what a person in the seat would: its hand, the clue unless it is the imposter, the table once cards are in.  An AI that
   throws or answers with something illegal is replaced by a random legal choice, and an empty hint list falls back to a
   few built-in words.  With no chooser there is simply no word to play: the rules pick one as the turn opens, from

@@ -205,7 +205,7 @@ function toggleCategory(key) {
     <h3>{{ t('lobby.howItWorks') }}</h3>
     <ol>
       <li>{{ t(state.noChooser ? 'lobby.rule.wordRandom' : 'lobby.rule.word') }}</li>
-      <li v-if="!state.hasImposter">{{ t('lobby.rule.everyoneSees') }}</li>
+      <li v-if="!state.hasImposter">{{ t(state.noChooser ? 'lobby.rule.everyoneSeesAll' : 'lobby.rule.everyoneSees') }}</li>
       <li v-else>{{ t(state.noChooser ? 'lobby.rule.oneInTheDarkAll' : 'lobby.rule.oneInTheDark', { hidden: t('table.hiddenWord') }) }}</li>
       <li v-if="state.hasImposter">{{ t('lobby.rule.bluff') }}</li>
       <li>{{ t('lobby.rule.reveal') }}</li>
