@@ -12,7 +12,7 @@
     { "key": "correctGuesses", "label": "Imposters correctly spotted", "agg": "sum" },
     { "key": "cardsPlayed", "label": "Cards played", "agg": "sum" },
     { "key": "soleCorrect", "label": "Times you alone spotted an imposter nobody found", "agg": "sum", "hidden": true },
-    { "key": "favouritePicks", "label": "Times your card was picked as the favourite", "agg": "sum", "hidden": true },
+    { "key": "favouritePicks", "label": "Times your card was judged the best", "agg": "sum", "hidden": true },
     { "key": "mostFooled", "label": "Most times you fooled the group in one game", "agg": "max", "hidden": true },
     { "key": "spymaster", "label": "Games you spotted the imposter every turn", "agg": "sum", "hidden": true },
     { "key": "loneDissent", "label": "Turns you alone voted against the card the group settled on", "agg": "sum", "hidden": true },
