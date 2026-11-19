@@ -88,18 +88,17 @@ watch(choosing, async (now) => {
 // ---- the end of a turn, and the host's buttons ----
 // True when the turn just finished was the last one.
 const isLastTurn = computed(() => state.value.completedTurns >= state.value.totalTurns);
-// Name of the player whose turn comes next (the next in seat order), or null when nobody has a part of their own:
-// with no chooser and everybody voting there is nobody to name, only the next word.
+// Name of the player who chooses the next word (the next in seat order after the current chooser), or null in a game
+// with no chooser, where there is nobody to name and only the next word to come.
 const nextChooser = computed(() => {
   const list = players.value;
   const current = list.findIndex((p) => p.isChooser);
   return current === -1 ? null : list[(current + 1) % list.length]?.name ?? null;
 });
-// What the button on to the next turn says: the last one, whose word it will be, who will decide, or simply "next".
+// What the button on to the next turn says: the last one, whose word it will be, or simply "next".
 const nextTurnLabel = computed(() => {
   if (isLastTurn.value) return t('table.lastTurn');
-  if (!nextChooser.value) return t('table.nextTurnPlain');
-  return t(state.value.noChooser ? 'table.nextTurnJudge' : 'table.nextTurn', { name: nextChooser.value });
+  return nextChooser.value ? t('table.nextTurn', { name: nextChooser.value }) : t('table.nextTurnPlain');
 });
 /**
  * Host only: abandons the current turn (no points) and moves on, after asking.

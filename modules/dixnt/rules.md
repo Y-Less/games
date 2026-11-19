@@ -47,10 +47,9 @@ The host can also turn the chooser off altogether, with the tick box beside the 
 - **Everybody** plays a card, the player whose turn it is included, so there is one more card on the table than usual.
 - One random player still sees ??? instead of the word and still has to bluff.
 
-It goes with the two styles above that end in a vote.  Favourite card is the chooser picking the one they like best, so it cannot be played this way, and the two cannot both be turned on.
+It goes with the styles the whole table votes on, and with those alone.  "Only the chooser decides" and "Favourite card" are both one player deciding, and that player is the word-chooser, so neither can be played this way: the game cannot be set to both at once, whichever you pick first.
 
-- With **Everyone votes**, nobody has a part of their own: the word arrives, everybody plays, everybody votes.
-- With **Only the chooser decides**, the player whose turn it is is the judge.  They play a card like everyone else, and they are never the one kept in the dark.
+Nobody has a part of their own in such a turn, so nobody is marked out at the table: the word arrives, everybody plays, everybody votes.
 
 ## Length of the game
 

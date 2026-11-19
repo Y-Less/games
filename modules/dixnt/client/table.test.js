@@ -205,14 +205,12 @@ describe('Dixnt move log', () => {
 
   // With no chooser a turn opens straight on the cards, so the line that announces it hangs on the turn's number
   // rather than on a word phase there no longer is.
-  it('opens a turn nobody chose the word for, and names the judge when there is one', () => {
+  it('opens a turn nobody chose the word for, which no word phase announces any more', () => {
     const all = table().map((p) => ({ ...p, isChooser: false, plays: true }));
     const open = (extra = {}) => view({ noChooser: true, chooserId: null, phase: 'picking', players: all, ...extra });
     expect(stepped(null, open())).toEqual(['Turn 1: a word was picked for the table.']);
     expect(stepped(view({ phase: 'results' }), open({ turn: 2, completedTurns: 1 }))).toEqual(['Turn 2: a word was picked for the table.']);
     expect(stepped(open(), open())).toEqual([], 'and not again while the same turn is played');
-    const judged = open({ judging: 'chooser', chooserId: 'ann', players: all.map((p) => ({ ...p, isChooser: p.id === 'ann' })) });
-    expect(stepped(null, judged)).toEqual(['Turn 1: a word was picked for the table. Ann decides.']);
     // A turn abandoned here steps from cards to cards, which the turn's number is what tells apart.
     expect(stepped(open(), open({ turn: 2 }))).toEqual(['The turn was skipped.', 'Turn 1: a word was picked for the table.']);
   });

@@ -14,7 +14,6 @@ for (const [judging, seed, noChooser] of [
   ['chooser', 92, false],
   ['favourite', 93, false],
   ['everyone', 94, true],
-  ['chooser', 95, true],
 ]) {
   const how = `${describeJudging[judging]}${noChooser ? ' and nobody chooses the word' : ''}`;
   test(`the views of a game where ${how} are the same every time for a seed, and say who is an account`, () => {

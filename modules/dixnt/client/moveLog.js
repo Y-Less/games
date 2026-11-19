@@ -50,10 +50,8 @@ function turnOpening(prev, next, name) {
   // A turn left behind without being completed: say so before announcing the one replacing it.
   if (prev && IN_TURN.includes(prev.phase) && prev.completedTurns === next.completedTurns) out.push(msg('log.skipped'));
   const n = turnNumber(next);
-  // Whose word it is, or, with nobody choosing one, that the table has been given one (and who judges, if anybody).
-  if (!next.noChooser) out.push(msg('log.choosing', { n, name: name(next.chooserId) }));
-  else if (next.chooserId === null) out.push(msg('log.turnRandom', { n }));
-  else out.push(msg('log.turnRandomJudge', { n, name: name(next.chooserId) }));
+  // Whose word it is, or, with nobody choosing one, simply that the table has been given one.
+  out.push(next.noChooser ? msg('log.turnRandom', { n }) : msg('log.choosing', { n, name: name(next.chooserId) }));
   return out;
 }
 

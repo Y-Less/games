@@ -13,7 +13,6 @@ describe('rendering every state of a whole game', () => {
   ['a game where everyone judges', () => recordedViews('everyone', 91)],
   ['a game of favourites', () => recordedViews('favourite', 93)],
   ['a game nobody chooses the word for', () => recordedViews('everyone', 94, { noChooser: true })],
-  ['a game nobody chooses the word for, judged by one player', () => recordedViews('chooser', 95, { noChooser: true })],
   ]) {
     it(`draws every view of ${label} without an error or a warning`, async () => {
       const { views, finished } = record();
@@ -28,7 +27,7 @@ describe('rendering every state of a whole game', () => {
   // the two with === quietly draws "?" instead of a name.  Nothing above would fail for it, so it is checked here.
   it('never writes "?" where a player name belongs', () => {
     const seen = [];
-    for (const [judging, noChooser] of [['everyone', false], ['chooser', false], ['favourite', false], ['everyone', true], ['chooser', true]]) {
+    for (const [judging, noChooser] of [['everyone', false], ['chooser', false], ['favourite', false], ['everyone', true]]) {
       let previous = null;
       for (const raw of recordedViews(judging, 91, { noChooser }).views) {
         const next = JSON.parse(raw);

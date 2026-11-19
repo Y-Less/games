@@ -489,7 +489,7 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
 
 /**
  * Plays a whole game against three of the lobby's computer players, which the server plays.  The human host joins
- * first, picks the settings, then plays (or judges) alongside them.
+ * first, picks the settings, then plays alongside them.
  */
 async function playComputerGame(t, { judging, categories, noChooser = false }) {
   const { site, person, userId } = await startDixnt(t);
@@ -523,8 +523,8 @@ async function playComputerGame(t, { judging, categories, noChooser = false }) {
     // Everybody plays a card with no chooser, so every player has one to be named; otherwise all but the chooser do.
     assert.equal(Object.keys(results.tally).length, noChooser ? 4 : 3);
   }
-  if (noChooser && judging === 'everyone') {
-    // Nobody chose the word and nobody judged, so no turn named anybody as having a part of their own.
+  if (noChooser) {
+    // Nobody chose the word, so no turn named anybody as having a part of their own.
     assert.deepEqual(rounds.map(({ chooserId }) => chooserId), [null, null, null, null]);
   } else {
     // The game could not have reached the end unless a computer player chose a word on the rounds it was the chooser.
@@ -562,9 +562,6 @@ test('computer players play the favourite style: everyone sees the word, the cho
 
 test('computer players play a whole game nobody chooses the word for: every player has a card on the table', (t) =>
   playComputerGame(t, { judging: 'everyone', categories: ['alpha', 'beta'], noChooser: true }));
-
-test('computer players play a game nobody chooses the word for, judged by one player each turn', (t) =>
-  playComputerGame(t, { judging: 'chooser', categories: ['beta'], noChooser: true }));
 
 test('several games run side by side, each with its own invite code', async (t) => {
   const { people4, person } = await startDixnt(t);

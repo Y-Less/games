@@ -1,12 +1,12 @@
 // The no-chooser variant: nobody types the word, it is picked at random, and EVERY player puts a card down.  What is
-// checked here is what the rules promise about it (see the header of game.js and the "Play styles" of rules.md):
-// which play styles it may be paired with, that the word is never asked for, that everybody plays and may be voted
-// for, that the judge of the 'chooser' style is never the one kept in the dark, and that a game is still as long as
-// it ever was.  How any particular turn is scored is the business of judging.test.js: the scoring is not changed by
-// the variant, so it is not pinned twice.
+// checked here is what the rules promise about it (see the header of game.js and "No chooser" in rules.md): which
+// play styles it may be paired with, that the word is never asked for, that everybody plays and may be voted for,
+// that nobody is marked out as having a part of their own, and that a game is still as long as it ever was.  How any
+// particular turn is scored is the business of judging.test.js: the scoring is not changed by the variant, so it is
+// not pinned twice.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CHOOSER_CORRECT_POINTS, CHOOSER_FOOLED_POINTS, NO_CHOOSER_JUDGING, POINTS_PER_VOTE } from './game.js';
+import { POINTS_PER_VOTE, VOTE_JUDGING } from './game.js';
 import { makeRoom, seededRng } from './harness.js';
 
 const WORDS = ['lighthouse', 'borrowed light', 'the long way round', 'tin soldier', 'last orders'];
@@ -52,10 +52,11 @@ test('with no chooser the word is picked for the table: there is no word phase t
   const made = started();
   const { game, room, rng } = made;
   assert.equal(room.phase, 'picking', 'the turn opens on the cards, not on somebody typing');
-  assert.ok(WORDS.includes(room.word), `the word is one of the suggestions, was ${room.word}`);
+  const given = room.word;
+  assert.ok(WORDS.includes(given), `the word is one of the suggestions, was ${given}`);
   // And nobody may type one over it, whoever they are.
   assert.equal(game.submitWord(room, room.chooserId, 'mine instead', rng).error, 'notTimeToChooseWord');
-  assert.equal(room.word, made.room.word, 'the word stands');
+  assert.equal(room.word, given, 'the word the table was given stands');
 });
 
 test('with no chooser every player puts a card down, and nobody is left out of the table', () => {
@@ -68,26 +69,18 @@ test('with no chooser every player puts a card down, and nobody is left out of t
   assert.equal(room.tableOrder.length, room.players.length, 'every card is on the table');
 });
 
-test('with no chooser and everybody voting, anybody may be the imposter and anybody may be voted for', () => {
-  // Over many turns the player whose turn it is must come up as the imposter too: nobody sits the bluffing out.
-  const seen = new Set();
-  for (let seed = 1; seed <= 25; seed++) {
+test('with no chooser and everybody voting, the player whose turn it is may be the imposter like anybody else', () => {
+  // With a chooser the imposter is drawn from everybody but them; here nobody sits the bluffing out, so over enough
+  // turns the player whose turn it is must come up as the one kept in the dark too.
+  let seen = false;
+  for (let seed = 1; seed <= 25 && !seen; seed++) {
     const made = started(['Ann', 'Bob', 'Cat', 'Dan'], { seed, rounds: 3 });
-    const { game, room } = made;
+    const { room } = made;
     playOut(made, () => {
-      if (room.imposterId === room.chooserId) seen.add('turn-holder');
-      // Everybody is on the table, so everybody but yourself is a card you may name.
-      for (const p of room.players) {
-        assert.deepEqual(
-          [...game.viewFor(room, p.id).voteTargets].sort(),
-          [],
-          'nobody votes while the cards are still going down',
-        );
-      }
+      seen ||= room.imposterId === room.chooserId;
     });
-    assert.ok(room.history.length > 0);
   }
-  assert.ok(seen.has('turn-holder'), 'the player whose turn it is is kept in the dark like anybody else');
+  assert.equal(seen, true, 'the player whose turn it is was kept in the dark at least once');
 });
 
 test('with no chooser everybody but yourself is a card you may vote for', () => {
@@ -101,41 +94,6 @@ test('with no chooser everybody but yourself is a card you may vote for', () => 
       `${p.name} may name anybody but themselves`,
     );
   }
-});
-
-test('with no chooser the judge of the "chooser" style plays a card but is never the one in the dark', () => {
-  for (let seed = 1; seed <= 20; seed++) {
-    const made = started(['Ann', 'Bob', 'Cat', 'Dan'], { judging: 'chooser', seed, rounds: 2 });
-    const { game, room } = made;
-    playOut(made, () => {
-      assert.notEqual(room.imposterId, room.chooserId, 'the judge would otherwise be handed the fooled points');
-      assert.equal(game.viewFor(room, room.chooserId).playsCard, true, 'the judge plays a card like everybody else');
-    });
-    assert.equal(room.completedTurns, 8);
-  }
-});
-
-test('with no chooser the judge still scores as the style says, and their own card is not a target', () => {
-  const made = started(['Ann', 'Bob', 'Cat'], { judging: 'chooser' });
-  const { game, room } = made;
-  playEveryCard(made);
-  const judge = room.chooserId;
-  const targets = game.viewFor(room, judge).voteTargets;
-  assert.equal(targets.includes(judge), false, 'you cannot accuse your own card');
-  assert.equal(game.vote(room, judge, room.imposterId).ok, true);
-  assert.equal(room.results.deltas[judge], CHOOSER_CORRECT_POINTS, 'spotting them scores the judge');
-  assert.equal(room.results.deltas[room.imposterId], 0);
-});
-
-test('with no chooser a fooled judge still hands the imposter the big score', () => {
-  const made = started(['Ann', 'Bob', 'Cat'], { judging: 'chooser' });
-  const { game, room } = made;
-  playEveryCard(made);
-  const judge = room.chooserId;
-  const decoy = game.viewFor(room, judge).voteTargets.find((id) => id !== room.imposterId);
-  const imposter = room.imposterId;
-  assert.equal(game.vote(room, judge, decoy).ok, true);
-  assert.equal(room.results.deltas[imposter], CHOOSER_FOOLED_POINTS);
 });
 
 test('with no chooser and everybody voting, the group is still only right by a clear majority', () => {
@@ -157,14 +115,28 @@ test('with no chooser and everybody voting, the group is still only right by a c
   assert.equal(room.results.deltas[imposter], 2 * POINTS_PER_VOTE, 'C and D missed them, and each is worth a point');
 });
 
-test('the favourite style and no chooser refuse each other, whichever is asked for first', () => {
-  const { game, room } = makeRoom(['Ann', 'Bob', 'Cat'], { judging: 'favourite' });
-  assert.equal(game.setSettings(room, 1, { noChooser: true }).error, 'noChooserNeedsVotes');
-  assert.equal(room.noChooser, false, 'and the room is left as it was');
-  assert.equal(game.setSettings(room, 1, { judging: 'everyone', noChooser: true }).ok, true, 'both at once is how to change style');
-  assert.equal(game.setSettings(room, 1, { judging: 'favourite' }).error, 'noChooserNeedsVotes');
-  assert.equal(room.judging, 'everyone', 'and that is left alone too');
-  for (const judging of NO_CHOOSER_JUDGING) assert.equal(game.setSettings(room, 1, { judging }).ok, true, `${judging} is allowed without a chooser`);
+// A style one player decides is that player being the word-chooser, so neither of them can be played without one.
+test('a style that needs a chooser and no chooser refuse each other, whichever is asked for first', () => {
+  for (const judging of ['chooser', 'favourite']) {
+    const { game, room } = makeRoom(['Ann', 'Bob', 'Cat'], { judging });
+    assert.equal(game.setSettings(room, 1, { noChooser: true }).error, 'noChooserNeedsVotes', `${judging} refuses the variant`);
+    assert.equal(room.noChooser, false, 'and the room is left as it was');
+    assert.equal(game.setSettings(room, 1, { judging: 'everyone', noChooser: true }).ok, true, 'both at once is how to change style');
+    assert.equal(game.setSettings(room, 1, { judging }).error, 'noChooserNeedsVotes', 'and the variant refuses it right back');
+    assert.equal(room.judging, 'everyone', 'with the style left alone too');
+  }
+});
+
+test('the styles the whole table votes on are exactly the ones a game with no chooser may use', () => {
+  const { game, room } = makeRoom(['Ann', 'Bob', 'Cat'], { noChooser: true });
+  for (const judging of VOTE_JUDGING) {
+    assert.equal(game.setSettings(room, 1, { judging }).ok, true, `${judging} is allowed without a chooser`);
+    assert.deepEqual(
+      game.voters(room).map((p) => p.id).sort(),
+      room.players.map((p) => p.id).sort(),
+      `${judging} is settled by the whole table`,
+    );
+  }
 });
 
 test('a game with no chooser is as long as any other: players x rounds turns, everybody taking one', () => {
@@ -188,17 +160,6 @@ test('with no chooser nobody is marked out as one, and the scoreboard says so to
   castEveryVote(made);
   const [row] = room.history;
   assert.equal(Object.values(row.notes).some((note) => note?.key === 'notes.chooser'), false, 'and no row calls anybody the chooser');
-});
-
-test('with no chooser and a judge, the judge is named and their row says how they did', () => {
-  const made = started(['Ann', 'Bob', 'Cat'], { judging: 'chooser' });
-  const { game, room } = made;
-  const judge = room.chooserId;
-  assert.equal(game.viewFor(room, judge).chooserId, judge, 'the one who decides is still named to the table');
-  playEveryCard(made);
-  game.vote(room, judge, room.imposterId);
-  const judgeSlot = game.playerOf(room, judge).slot;
-  assert.equal(room.history[0].notes[judgeSlot].key, 'notes.judgeSpotted');
 });
 
 test('the word with no chooser comes from the suggestions without repeating, and there is always one', () => {

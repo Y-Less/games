@@ -3,7 +3,7 @@
 // single action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { JUDGING_MODES, MIN_PLAYERS, NO_CHOOSER_JUDGING } from './game.js';
+import { JUDGING_MODES, MIN_PLAYERS, VOTE_JUDGING } from './game.js';
 import { rulesWith } from './harness.js';
 import { seeded } from '../../shared/testkit.js';
 
@@ -21,10 +21,10 @@ function newRoom(game, count) {
 /** The player a table's key names.  A table keyed by player id has text keys; a person's id is a number. */
 const byKey = (room, key) => room.players.find((p) => String(p.id) === String(key));
 
-/** Every way a game can be set up: each judging style, and the two that also go without a word-chooser. */
+/** Every way a game can be set up: each judging style, and those that also go without a word-chooser. */
 const VARIANTS = [
   ...JUDGING_MODES.map((judging) => ({ judging, noChooser: false })),
-  ...NO_CHOOSER_JUDGING.map((judging) => ({ judging, noChooser: true })),
+  ...VOTE_JUDGING.map((judging) => ({ judging, noChooser: true })),
 ];
 /** How a variant is named in a test's title. */
 const describeVariant = ({ judging, noChooser }) => `"${judging}" judging${noChooser ? ' with nobody choosing the word' : ''}`;
@@ -60,11 +60,7 @@ function check(game, room, memory, where) {
   }
   if (['picking', 'voting', 'results'].includes(room.phase)) {
     if (room.judging === 'favourite') assert.equal(room.imposterId, null);
-    else {
-      assert.ok(game.playerOf(room, room.imposterId) && plays.has(room.imposterId), `${note}: the imposter is a current card player`);
-      // The one who decides is never the one in the dark, or they could hand themselves the fooled points.
-      if (room.judging === 'chooser') assert.notEqual(room.imposterId, room.chooserId, `${note}: the judge is the imposter`);
-    }
+    else assert.ok(game.playerOf(room, room.imposterId) && plays.has(room.imposterId), `${note}: the imposter is a current card player`);
   }
   if (room.phase === 'voting') assert.equal(room.tableOrder.length, game.cardPlayers(room).length, `${note}: every card is on the table`);
   if (room.phase === 'results') {

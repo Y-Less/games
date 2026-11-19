@@ -38,29 +38,23 @@ const { openId, scoreProps, popupProps } = usePlayerPopup({
 });
 // The player whose pop-up is open, or null.
 const opened = computed(() => state.value.players.find((p) => p.id === openId.value) ?? null);
-// The word for the player whose turn it is: the chooser, or, in a game with no chooser, simply the judge.
-const roleWord = (key) => t(state.value.noChooser ? `popup.theJudge` : `popup.${key}`);
 // Returns what a player is doing in this phase, in words, for their pop-up ('' if nothing to say).
 const stageOf = (p) => {
   const phase = state.value.phase;
   if (phase === 'word') return t(p.isChooser ? 'popup.choosingWord' : 'popup.waitingForWord');
-  if (phase === 'picking') return p.plays ? t(p.hasPlayed ? 'popup.hasPlayed' : 'popup.stillChoosing') : roleWord('theChooser');
+  if (phase === 'picking') return p.plays ? t(p.hasPlayed ? 'popup.hasPlayed' : 'popup.stillChoosing') : t('popup.theChooser');
   if (phase === 'voting') return t(p.hasVoted ? 'popup.hasVoted' : 'popup.stillToVote');
-  return p.isChooser ? roleWord('theChooser') : '';
+  return p.isChooser ? t('popup.theChooser') : '';
 };
-// How the turn turned out, over the scores: whether the one who decided was right, or whether the group was.  The
-// one who decides is the chooser, or, in a game with no chooser, the judge.
+// How the turn turned out, over the scores: whether the chooser's own guess was right, or whether the group's was.
 const verdict = computed(() => {
   const right = results.value?.groupCorrect;
-  if (results.value?.judging !== 'chooser') return t(right ? 'reveal.groupFound' : 'reveal.groupFooled');
-  if (state.value.noChooser) return t(right ? 'reveal.judgeSpotted' : 'reveal.judgeFooled');
-  return t(right ? 'reveal.chooserSpotted' : 'reveal.chooserFooled');
+  if (results.value?.judging === 'chooser') return t(right ? 'reveal.chooserSpotted' : 'reveal.chooserFooled');
+  return t(right ? 'reveal.groupFound' : 'reveal.groupFooled');
 });
-// What the pop-up's turn count is called: turns as the chooser, as the judge, or simply turns taken.
-const turnsLabel = computed(() => {
-  if (!state.value.noChooser) return t('popup.turns');
-  return t(state.value.judging === 'chooser' ? 'popup.turnsAsJudge' : 'popup.turnsTaken');
-});
+// Whether the pop-up shows how many turns a player has had as the chooser: with no chooser, nobody has had any, and
+// the count the game keeps is only how it knows when it is over.
+const showTurns = computed(() => !state.value.noChooser);
 // The Status box content: the phase's messages from status.js put into words, plus a warning line naming anyone who
 // is away.  GameStatus wants strings, so every message is translated here, where the game's locale file is in reach.
 const status = computed(() => {
@@ -108,8 +102,10 @@ const scoresWorthStopping = computed(() => Boolean(state.value.results?.roundOve
         <dl v-if="opened" class="facts">
           <dt>{{ t('popup.score') }}</dt>
           <dd>{{ opened.score }}</dd>
-          <dt>{{ turnsLabel }}</dt>
-          <dd>{{ opened.turns }}</dd>
+          <template v-if="showTurns">
+            <dt>{{ t('popup.turns') }}</dt>
+            <dd>{{ opened.turns }}</dd>
+          </template>
           <template v-if="stageOf(opened)">
             <dt>{{ t('popup.now') }}</dt>
             <dd>{{ stageOf(opened) }}</dd>
@@ -131,9 +127,7 @@ const scoresWorthStopping = computed(() => Boolean(state.value.results?.roundOve
           <span v-if="state.phase !== 'finished'">{{ t('facts.round', { n: roundNumber(state), total: state.rounds }) }}</span>
           <span>{{ text(styleName(state.judging)) }}</span>
           <span v-if="state.noChooser">{{ t('judging.noChooserShort') }}</span>
-          <span v-if="state.phase !== 'finished' && state.chooserId !== null">
-            {{ t(state.noChooser ? 'facts.judge' : 'facts.chooser', { name: nameOf(state.chooserId) }) }}
-          </span>
+          <span v-if="state.phase !== 'finished' && state.chooserId !== null">{{ t('facts.chooser', { name: nameOf(state.chooserId) }) }}</span>
           <span v-if="word" class="word">{{ t('facts.word', { word }) }}</span>
           <span>{{ t('facts.deck', { draw: state.drawCount, discard: state.discardCount }) }}</span>
           <span class="muted">{{ t('facts.code', { code: state.code }) }}</span>

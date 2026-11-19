@@ -21,15 +21,15 @@
 //
 // The no-chooser variant (the 'noChooser' setting, which the host ticks beside the play style): nobody types the
 // word.  It is picked at random from the same suggestions the chooser would have been offered, the 'word' phase
-// never happens, and EVERY player puts a card down rather than everybody but one.  It goes with the two voting
-// styles only: 'favourite' is the word-chooser picking the card they like best, which has no meaning in a game
-// without one, so the two settings refuse each other.  With 'everyone' nobody has a part of their own at all; with
-// 'chooser' the player whose turn it is judges (and plays a card like everybody else), and is never the imposter,
-// which would otherwise hand them CHOOSER_FOOLED_POINTS for accusing anybody at all.
+// never happens, and EVERY player puts a card down rather than everybody but one.  It goes with the styles the whole
+// table votes on (VOTE_JUDGING) and with those alone: 'chooser' and 'favourite' are both one player deciding, and
+// that player is the word-chooser, so neither has any meaning in a game without one.  The two settings refuse each
+// other, whichever of them the host asks for first.
 //
 // Even with no chooser the turn still belongs to somebody, because that is what the length of a game is counted in:
 // `room.chooserId` goes round the table as ever, and a round is still everybody's turn having come up once, so a
-// game is players x rounds turns long whichever way it is played.  What changes is only what that player does.
+// game is players x rounds turns long whichever way it is played.  Nobody has a part of their own in such a turn,
+// though, so the view sends no chooser at all and the table marks nobody out.
 //
 // The deck is built from the categories the host selects (cards come in categories; see setCards below).
 //
@@ -72,8 +72,11 @@ export const CHOOSER_CORRECT_POINTS = 1;
 export const CHOOSER_FOOLED_POINTS = 5;
 export const FAVOURITE_POINTS = 2;
 export const JUDGING_MODES = ['everyone', 'chooser', 'favourite'];
-/** The play styles a game with no word-chooser can be judged by: the two that are settled by a vote. */
-export const NO_CHOOSER_JUDGING = ['everyone', 'chooser'];
+/**
+ * The play styles the whole table votes on, rather than one player deciding.  They are exactly the styles a game
+ * with no word-chooser can be judged by: the deciding player in the others IS the word-chooser.
+ */
+export const VOTE_JUDGING = ['everyone'];
 /** How many rounds a game may run for (everybody chooses the word once a round), and how many unless the host says. */
 export const ROUNDS = { min: 1, max: 10, default: 2 };
 export const MIN_PLAYERS = 3;
@@ -169,26 +172,15 @@ export { playerOf };
 export const cardPlayers = (room) => (room.noChooser ? [...room.players] : room.players.filter((p) => p.id !== room.chooserId));
 
 /**
- * Who may be the one kept in the dark: anybody who plays a card, except the judge of the 'chooser' style.  With a
- * word-chooser that is already so (they play no card); without one it has to be said, or the judge could accuse
- * anybody at all and collect the imposter's points for being fooled by themselves.
- *
- * @param {object} room  not changed
- * @returns {object[]} the players who could be the imposter (never empty in a game of MIN_PLAYERS or more)
- * Side effects: none.
- */
-const imposterCandidates = (room) => cardPlayers(room).filter((p) => room.judging !== 'chooser' || p.id !== room.chooserId);
-
-/**
- * The player whose part in the turn everybody can see: the one choosing the word, or, with no chooser, the judge of
- * the 'chooser' style.  Null when the turn belongs to somebody with nothing of their own to do (no chooser, and
- * everybody votes), so that no player is marked out at the table for a role they do not have.
+ * The player whose part in the turn everybody can see: the one choosing the word.  Null in the no-chooser variant,
+ * where the turn still belongs to somebody (that is how a game's length is counted) but they have nothing of their
+ * own to do, so that no player is marked out at the table for a role they do not have.
  *
  * @param {object} room  not changed
  * @returns {number | string | null} the player's id, or null
  * Side effects: none.
  */
-const visibleChooser = (room) => (room.noChooser && room.judging !== 'chooser' ? null : room.chooserId);
+const visibleChooser = (room) => (room.noChooser ? null : room.chooserId);
 
 /**
  * The players whose votes are needed before the turn can end: everybody, or the chooser alone.
@@ -197,7 +189,7 @@ const visibleChooser = (room) => (room.noChooser && room.judging !== 'chooser' ?
  * @returns {object[]} the players
  * Side effects: none.
  */
-export const voters = (room) => (room.judging === 'everyone' ? room.players : room.players.filter((p) => p.id === room.chooserId));
+export const voters = (room) => (VOTE_JUDGING.includes(room.judging) ? room.players : room.players.filter((p) => p.id === room.chooserId));
 
 /**
  * Is the turn waiting for this player to do something?  The chooser while the word is chosen, everybody still to play
@@ -269,9 +261,9 @@ export const availableIds = (room) => [...new Set(selectedCategories(room).flatM
  */
 function normaliseSettings(room) {
   if (!JUDGING_MODES.includes(room.judging)) room.judging = 'everyone';
-  // A room saved before the variant existed has no setting at all, and one saved with both the favourite style and
-  // no chooser is a pair that cannot be played: the style the host picked wins, and the variant is simply off.
-  room.noChooser = room.noChooser === true && NO_CHOOSER_JUDGING.includes(room.judging);
+  // A room saved before the variant existed has no setting at all, and one saved with no chooser and a style that
+  // needs one is a pair that cannot be played: the style the host picked wins, and the variant is simply off.
+  room.noChooser = room.noChooser === true && VOTE_JUDGING.includes(room.judging);
   const known = categoriesOf().map((c) => c.key);
   const chosen = Array.isArray(room.categories) ? room.categories.filter((key) => known.includes(key)) : [];
   room.categories = chosen.length ? chosen : known;
@@ -581,11 +573,11 @@ function applySettings(room, id, settings) {
     if (!keys.length) return fail('needCategory');
     wanted.categories = known.filter((c) => keys.includes(c.key)).map((c) => c.key); // keep the standard order
   }
-  // The favourite style is the word-chooser picking the card they like best, so the two cannot both be asked for.
-  // The pair is read off the room with this message applied to it, so it is refused whichever of the two arrives
-  // first: the lobby sends one setting at a time, and either order would otherwise leave the room unplayable.
+  // A style where one player decides is that player being the word-chooser, so it cannot be asked for together with
+  // a game that has none.  The pair is read off the room with this message applied to it, so it is refused whichever
+  // of the two arrives first: the lobby sends one setting at a time, and either order would leave the room unplayable.
   const paired = { judging: room.judging, noChooser: room.noChooser, ...wanted };
-  if (paired.noChooser && !NO_CHOOSER_JUDGING.includes(paired.judging)) return fail('noChooserNeedsVotes');
+  if (paired.noChooser && !VOTE_JUDGING.includes(paired.judging)) return fail('noChooserNeedsVotes');
   Object.assign(room, wanted);
   return ok();
 }
@@ -707,7 +699,7 @@ function randomWord(room, rng) {
  */
 function beginPicking(room, word, rng) {
   room.word = word;
-  const candidates = imposterCandidates(room);
+  const candidates = cardPlayers(room);
   // In the favourite style nobody is kept in the dark, so there is no imposter.
   room.imposterId = room.judging === 'favourite' ? null : candidates[Math.floor(rng() * candidates.length)].id;
   room.phase = 'picking';
@@ -814,7 +806,7 @@ function openVoting(room, rng) {
 export function vote(room, id, targetId) {
   if (room.phase !== 'voting') return fail('notTimeToVote');
   if (!playerOf(room, id)) return fail('notInGame');
-  if (room.judging !== 'everyone' && id !== room.chooserId) return fail('chooserOnlyVotes');
+  if (!VOTE_JUDGING.includes(room.judging) && id !== room.chooserId) return fail('chooserOnlyVotes');
   if (id === targetId) return fail('voteSelf');
   if (!cardPlayers(room).some((p) => p.id === targetId)) return fail('voteCardPlayer');
   room.votes[id] = targetId;
@@ -866,7 +858,7 @@ function resolveVotes(room) {
  */
 function resolveChooserVerdict(room) {
   const accusedId = room.votes[room.chooserId];
-  const groupCorrect = accusedId === room.imposterId; // here it means "the judge was correct"
+  const groupCorrect = accusedId === room.imposterId; // here it means "the chooser was correct"
   const deltas = Object.fromEntries(room.players.map((p) => [p.id, 0]));
   if (groupCorrect) deltas[room.chooserId] = CHOOSER_CORRECT_POINTS;
   else deltas[room.imposterId] = CHOOSER_FOOLED_POINTS;
@@ -918,9 +910,7 @@ function turnNotes(room, { judging, groupCorrect, winnerId }) {
     if (winnerId !== undefined && winnerId !== null) notes[winnerId] = notes[winnerId] ? msg('notes.chooserCardPicked') : msg('notes.cardPicked');
   } else if (room.imposterId !== null) {
     notes[room.imposterId] = msg(groupCorrect ? 'notes.imposterCaught' : 'notes.imposterFooledAll');
-    // The one who decides is the word-chooser, or, where there is none, simply the judge.
-    const role = room.noChooser ? 'judge' : 'chooser';
-    if (judging === 'chooser') notes[room.chooserId] = msg(groupCorrect ? `notes.${role}Spotted` : `notes.${role}Fooled`);
+    if (judging === 'chooser') notes[room.chooserId] = msg(groupCorrect ? 'notes.chooserSpotted' : 'notes.chooserFooled');
   }
   return notes;
 }
@@ -1110,8 +1100,8 @@ const categoriesView = (room) =>
  * The viewer's own place: their hand, pick, and vote, and whether they were the imposter (only once that is revealed).
  * Who the viewer is is the view's `you`, as in every game.
  *
- * `isChooser` is the part everybody can see them playing (visibleChooser), so in a game with no chooser and no judge
- * it is nobody's; whether they put a card down this turn is `playsCard`, which is not the opposite of it.
+ * `isChooser` is the part everybody can see them playing (visibleChooser), so in a game with no chooser it is
+ * nobody's; whether they put a card down this turn is `playsCard`, which is not the opposite of it.
  *
  * @param {object} room  not changed
  * @param {object | undefined} me  the viewer's player, or undefined for somebody who is not in the room

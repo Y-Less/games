@@ -92,23 +92,33 @@ describe('Dixnt lobby computer players', () => {
     expect(send).toHaveBeenLastCalledWith('settings', { categories: [] });
   });
 
-  // "No chooser" sits beside the play style, and goes only with the styles that end in a vote, so "Favourite card"
-  // is put out of reach while it is on rather than left to be refused by the server.
-  it('lets the host turn the chooser off, and takes the favourite style off the table while it is', async () => {
-    const { wrapper, send } = make({ players: [person('ann', 'Ann'), person('bob', 'Bob'), bot('b1', 'Ada')] });
+  // "No chooser" sits beside the play style, and goes only with the styles the whole table votes on: the styles one
+  // player decides are that player being the word-chooser, so they are put out of reach while it is on rather than
+  // left to be refused by the server.
+  const table3 = () => [person('ann', 'Ann'), person('bob', 'Bob'), bot('b1', 'Ada')];
+  const judgingInputs = (w) => w.findAll('input[name="judging"]').map((r) => r.attributes('disabled') !== undefined);
+
+  it('lets the host turn the chooser off, and takes the one-decider styles off the table while it is', async () => {
+    const { wrapper, send } = make({ players: table3() });
     const noChooser = () => wrapper.find('.option input[type="checkbox"]');
-    expect(wrapper.findAll('input[name="judging"]').every((r) => r.attributes('disabled') === undefined)).toBe(true);
+    expect(judgingInputs(wrapper)).toEqual([false, false, false]);
     noChooser().element.checked = true;
     await noChooser().trigger('change');
     expect(send).toHaveBeenLastCalledWith('settings', { noChooser: true });
 
-    const { wrapper: on } = make({ players: [person('ann', 'Ann'), person('bob', 'Bob'), bot('b1', 'Ada')], settings: { noChooser: true } });
-    const styles = on.findAll('input[name="judging"]');
-    expect([styles[0].attributes('disabled'), styles[1].attributes('disabled')]).toEqual([undefined, undefined]);
-    expect(styles[2].attributes('disabled')).toBeDefined();
+    const { wrapper: on } = make({ players: table3(), settings: { noChooser: true } });
+    expect(judgingInputs(on), 'everyone votes stays; the chooser and favourite styles do not').toEqual([false, true, true]);
     expect(on.text()).toContain('this one needs the chooser');
     expect(on.text()).toContain('a word or phrase is picked at random');
     expect(on.text()).toContain("times each player's turn comes round");
+  });
+
+  it('puts "No chooser" out of reach while a style that needs one is picked, which is the same refusal the other way', () => {
+    for (const judging of ['chooser', 'favourite']) {
+      const { wrapper } = make({ players: table3(), settings: { judging } });
+      expect(wrapper.find('.option input[type="checkbox"]').attributes('disabled'), judging).toBeDefined();
+      expect(judgingInputs(wrapper), 'and no style is barred while there is a chooser').toEqual([false, false, false]);
+    }
   });
 
   it('shows nobody but the host any bot controls', () => {

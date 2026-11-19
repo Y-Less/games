@@ -28,21 +28,28 @@ const selected = computed(() => state.value.categories.filter((c) => c.selected)
 // The names of the chosen categories, as the language joins a list.
 const selectedNames = computed(() => selected.value.map((c) => text(c.label)).join(', '));
 
-// The three play styles with their titles and rule text (which quotes the current point values).  "Favourite card" is
-// the word-chooser picking the one they like best, so with nobody choosing the word it cannot be picked: the host
-// unticks "No chooser" to get it back, and the server refuses the pair either way round.
-const judgingOptions = computed(() => [
-  { mode: 'everyone', title: t('judging.everyone.title'), text: t('judging.everyone.text', { perVote: state.value.pointsPerVote }) },
-  { mode: 'chooser', title: t('judging.chooser.title'), text: t('judging.chooser.text', { correct: state.value.pointsChooserCorrect, fooled: state.value.pointsFooledChooser }) },
-  {
-    mode: 'favourite',
-    title: t('judging.favourite.title'),
-    text: state.value.noChooser ? t('judging.favourite.needsChooser') : t('judging.favourite.text', { points: state.value.pointsFavourite }),
-    off: state.value.noChooser,
-  },
-]);
+// The styles one player decides rather than the whole table voting, and that player is always the word-chooser: so
+// they cannot be played with nobody choosing the word, and are put out of reach while "No chooser" is ticked.
+const NEEDS_CHOOSER = ['chooser', 'favourite'];
+// The play styles with their titles and rule text (which quotes the current point values).  One that needs a chooser
+// says why instead of how it is scored while it cannot be picked.
+const judgingOptions = computed(() => {
+  const off = state.value.noChooser;
+  const described = {
+    everyone: () => t('judging.everyone.text', { perVote: state.value.pointsPerVote }),
+    chooser: () => t('judging.chooser.text', { correct: state.value.pointsChooserCorrect, fooled: state.value.pointsFooledChooser }),
+    favourite: () => t('judging.favourite.text', { points: state.value.pointsFavourite }),
+  };
+  return ['everyone', 'chooser', 'favourite'].map((mode) => {
+    const barred = off && NEEDS_CHOOSER.includes(mode);
+    return { mode, title: t(`judging.${mode}.title`), text: barred ? t(`judging.${mode}.needsChooser`) : described[mode](), off: barred };
+  });
+});
 // The option for the style in use (shown to non-hosts).
 const currentJudging = computed(() => judgingOptions.value.find((o) => o.mode === state.value.judging));
+// Turning the chooser off is out of reach while a style that needs one is picked, as those styles are while it is
+// off: the server refuses the pair either way round, and a tick box that sprang back would say nothing about why.
+const noChooserOff = computed(() => NEEDS_CHOOSER.includes(state.value.judging));
 // How long the game runs, in words: with a chooser it is counted in everybody's goes at the word, without one in rounds.
 const lengthWords = computed(() => ({
   times: t('lobby.times', { count: state.value.rounds }, state.value.rounds),
@@ -104,11 +111,16 @@ function toggleCategory(key) {
           </span>
         </label>
       </div>
-      <label class="option" :class="{ on: state.noChooser }">
-        <input type="checkbox" :checked="state.noChooser" @change="send('settings', { noChooser: $event.target.checked })" />
+      <label class="option" :class="{ on: state.noChooser, off: noChooserOff }">
+        <input
+          type="checkbox"
+          :checked="state.noChooser"
+          :disabled="noChooserOff"
+          @change="send('settings', { noChooser: $event.target.checked })"
+        />
         <span>
           <strong>{{ t('lobby.noChooser') }}</strong>
-          <span class="muted">{{ t('lobby.noChooserText') }}</span>
+          <span class="muted">{{ noChooserOff ? t('judging.needsChooser') : t('lobby.noChooserText') }}</span>
         </span>
       </label>
     </template>
@@ -194,8 +206,7 @@ function toggleCategory(key) {
       <li v-if="state.judging !== 'favourite'">{{ t('lobby.rule.bluff') }}</li>
       <li>{{ t('lobby.rule.reveal') }}</li>
       <li v-if="state.judging === 'favourite'">{{ t('lobby.rule.favourite', { points: state.pointsFavourite }) }}</li>
-      <li v-else-if="state.judging !== 'chooser'">{{ t('lobby.rule.everyoneVotes') }}</li>
-      <li v-else>{{ t(state.noChooser ? 'lobby.rule.judgeDecides' : 'lobby.rule.chooserDecides') }}</li>
+      <li v-else>{{ t(state.judging === 'chooser' ? 'lobby.rule.chooserDecides' : 'lobby.rule.everyoneVotes') }}</li>
     </ol>
   </section>
 </template>

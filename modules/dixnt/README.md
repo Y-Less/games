@@ -31,16 +31,17 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
 The host picks one of three ways of judging a turn (`room.judging`: `everyone`, `chooser` or `favourite`; see
 `rules.md`), and beside it may turn the word-chooser off altogether (`room.noChooser`).  With no chooser the word is
 picked at random from the same suggestions a chooser would have been offered, the `word` phase never happens, and
-**every** player puts a card down rather than everybody but one.  It goes with the two styles that end in a vote;
-`favourite` is the chooser picking the card they like best, so the pair refuses itself whichever setting arrives
-first (`noChooserNeedsVotes`), and a save holding both loads with the variant dropped.
+**every** player puts a card down rather than everybody but one.
+
+It goes with the styles the whole table votes on (`VOTE_JUDGING`) and with those alone: `chooser` and `favourite` are
+both one player deciding, and that player **is** the word-chooser, so neither means anything without one.  The pair
+refuses itself whichever setting arrives first (`noChooserNeedsVotes`), and a save holding both loads with the
+variant dropped, the style the host picked winning.
 
 A turn still belongs to a player either way, because that is what the length of a game is counted in: `room.chooserId`
-goes round the table as ever, so a game is players x rounds turns long whichever way it is played.  What changes is
-what that player does.  Under `everyone` they have no part of their own, and the view says so by sending
-`chooserId: null` (and `isChooser: false` for everybody), so nobody is marked out at the table for a role they do not
-have; under `chooser` they are the judge, play a card like everybody else, and are never the one kept in the dark,
-which would otherwise hand them the fooled points for accusing anybody at all.  Whether a player is in this turn's
+goes round the table as ever, so a game is players x rounds turns long whichever way it is played.  With no chooser
+that player has no part of their own, and the view says so by sending `chooserId: null` (and `isChooser: false` for
+everybody), so nobody is marked out at the table for a role they do not have.  Whether a player is in this turn's
 cards is the view's `playsCard` (and `players[].plays`), which is **not** the opposite of `isChooser`: the client
 reads it wherever it used to ask who the chooser was.
 

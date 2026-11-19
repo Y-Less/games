@@ -42,7 +42,6 @@
       "reveal": "The cards and the word are revealed. Talk it through and justify your choices.",
       "favourite": "Then the chooser picks their favourite card, and that player scores {points}.",
       "chooserDecides": "Then the vote: the chooser decides who they think was in the dark.",
-      "judgeDecides": "Then the vote: the player whose turn it is decides who they think was in the dark.",
       "everyoneVotes": "Then the vote: everyone votes for who they think was in the dark."
     }
   },
@@ -55,7 +54,8 @@
     "chooser": {
       "title": "Only the chooser decides",
       "short": "Only the chooser decides",
-      "text": "Only the word-chooser guesses who was in the dark. Guess right and the chooser scores {correct}. Get fooled and the imposter scores {fooled}."
+      "text": "Only the word-chooser guesses who was in the dark. Guess right and the chooser scores {correct}. Get fooled and the imposter scores {fooled}.",
+      "needsChooser": "Somebody has to choose the word to be the one deciding, so this one needs the chooser."
     },
     "favourite": {
       "title": "Favourite card (no imposter)",
@@ -63,6 +63,7 @@
       "text": "Everybody sees the word and nobody has to bluff. The chooser picks the card they like best, and the player who played it scores {points}.",
       "needsChooser": "Somebody has to choose the word to pick a favourite, so this one needs the chooser."
     },
+    "needsChooser": "That style is one player deciding, and that player is the word-chooser.",
     "noChooserShort": "no chooser"
   },
   "turn": {
@@ -76,25 +77,18 @@
     "imposterCaught": "imposter, caught",
     "imposterFooledAll": "imposter, fooled all",
     "chooserSpotted": "chooser, spotted it",
-    "chooserFooled": "chooser, fooled",
-    "judgeSpotted": "judge, spotted it",
-    "judgeFooled": "judge, fooled"
+    "chooserFooled": "chooser, fooled"
   },
   "reveal": {
     "favourite": "{chooser} picked {winner}’s card.",
     "imposter": "{name} was the imposter.",
     "chooserSpotted": "The chooser spotted them.",
     "chooserFooled": "The chooser was fooled.",
-    "judgeSpotted": "The judge spotted them.",
-    "judgeFooled": "The judge was fooled.",
     "groupFound": "The group found them.",
     "groupFooled": "The group was fooled."
   },
   "popup": {
     "turns": "Turns as chooser",
-    "turnsAsJudge": "Turns as judge",
-    "turnsTaken": "Turns taken",
-    "theJudge": "the judge",
     "choosingWord": "choosing the word",
     "waitingForWord": "waiting for the word",
     "hasPlayed": "has played a card",
@@ -105,7 +99,6 @@
   },
   "facts": {
     "chooser": "Chooser: {name}",
-    "judge": "Judge: {name}",
     "word": "Word: {word}",
     "deck": "Deck {draw} / discard {discard}",
     "code": "Code {code}"
@@ -120,7 +113,6 @@
     "lockIn": "Lock it in",
     "lastTurn": "That was the last turn: see the final scores",
     "nextTurn": "Next turn: {name} chooses the word",
-    "nextTurnJudge": "Next turn: {name} decides",
     "nextTurnPlain": "Next turn",
     "backToLobby": "Back to the lobby",
     "skipTurn": "Skip turn",
@@ -205,7 +197,6 @@
     "skipped": "The turn was skipped.",
     "choosing": "Turn {n}: {name} is choosing a word.",
     "turnRandom": "Turn {n}: a word was picked for the table.",
-    "turnRandomJudge": "Turn {n}: a word was picked for the table. {name} decides.",
     "chose": "{name} chose the word.",
     "played": "{name} played a card.",
     "voted": "{name} voted.",
@@ -218,7 +209,7 @@
   "errors": {
     "handSizeRange": "Hand size must be between {min} and {max}.",
     "unknownJudging": "Unknown judging method.",
-    "noChooserNeedsVotes": "Without a word-chooser there is nobody to pick a favourite card. Choose a style that ends in a vote.",
+    "noChooserNeedsVotes": "That style is one player deciding, and that player is the word-chooser. Pick a style the whole table votes on, or turn the chooser back on.",
     "unknownCategory": "Unknown category.",
     "needCategory": "Pick at least one category.",
     "notEnoughCards": "There are not enough cards in the chosen categories for that many players. Choose more categories.",

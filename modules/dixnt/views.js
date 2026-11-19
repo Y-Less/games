@@ -32,7 +32,10 @@ export function recordedViews(judging, seed, { noChooser = false } = {}) {
   const hostId = 1;
   const room = game.createRoom({ code: 'seeded-game-here', hostId, hostName: 'Host', now: 0 });
   game.fillWithBots(room, hostId, 4);
-  game.setSettings(room, hostId, { judging, noChooser, rounds: 2, handSize: 4 });
+  // A refused setting would quietly play a default game instead, and every test built on these views would pass
+  // without ever looking at the one it named.
+  const set = game.setSettings(room, hostId, { judging, noChooser, rounds: 2, handSize: 4 });
+  assert.equal(set.ok, true, `the settings are accepted (${set.error})`);
   const views = [];
   const look = () => {
     for (const p of room.players) {
