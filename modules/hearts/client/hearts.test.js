@@ -183,9 +183,9 @@ describe('Hearts table in the standard frame', () => {
   });
 
   it('draws the recent moves it is given, newest first', () => {
-    const w = mount(Table, { props: { state: view(room()), send: makeSend(), log: [{ key: 'log.dealt', params: { n: 1 } }, { key: 'log.takesTrick', params: { name: 'Hazel' } }] } });
+    const w = mount(Table, { props: { state: view(room()), send: makeSend(), log: [{ key: 'log.dealt', params: { n: 1 } }, { key: 'log.played', params: { name: 'Hazel', card: { key: 'cards.name', params: { rank: '2', suit: { key: 'cards.suit.C' } } } } }] } });
     const rows = w.findAll('.box.log li').map((li) => li.text());
-    expect(rows).toEqual(['Hazel takes the trick.', 'Hand 1 is dealt.']);
+    expect(rows).toEqual(['Hazel played the 2 of clubs.', 'Hand 1 is dealt.']);
   });
 
   it('shows the result and the buttons in Status once the game is over', async () => {
@@ -319,7 +319,8 @@ describe('Hearts shell', () => {
 
 describe('advanceLog', () => {
   const seats = ['Ann', 'Bo', 'Cy', 'Di'].map((name) => ({ name }));
-  const at = (extra) => ({ code: 'a-b-c', phase: 'playing', handNumber: 1, seats, trick: [], trickWinner: null, ...extra });
+  // `trickNumber` is the trick whose cards are on the table, which is what each line is filed under.
+  const at = (extra) => ({ code: 'a-b-c', phase: 'playing', handNumber: 1, trickNumber: 1, seats, trick: [], trickWinner: null, ...extra });
 
   it('starts empty, and clears outside a game', () => {
     expect(advanceLog([{ text: 'x' }], at(), null)).toEqual([]);
@@ -327,17 +328,14 @@ describe('advanceLog', () => {
     expect(advanceLog([], null, at())).toEqual([]);
   });
 
-  it('notes who took the trick, and never the cards in it', () => {
-    // One line a trick, not one a card: fifty-two of those a hand is not a list anybody reads.  The trick on the
-    // table is where the cards are while they are being played.
+  it('notes each card played and the trick taken', () => {
     let log = advanceLog([], at(), at({ trick: [{ seat: 0, card: '2C' }] }));
-    expect(log).toEqual([], 'a card going down is not news by itself');
+    expect(log.map(words)).toEqual(['Ann played the 2 of clubs.']);
     const full = [{ seat: 0, card: '2C' }, { seat: 1, card: '5C' }, { seat: 2, card: 'KC' }, { seat: 3, card: 'AC' }];
     log = advanceLog(log, at({ trick: [{ seat: 0, card: '2C' }] }), at({ trick: full, trickWinner: 3 }));
-    expect(log.map(words)).toEqual(['Di takes the trick.']);
+    expect(log.map(words).slice(1)).toEqual(['Bo played the 5 of clubs.', 'Cy played the king of clubs.', 'Di played the ace of clubs.', 'Di takes the trick.']);
     log = advanceLog(log, at({ trick: full, trickWinner: 3 }), at({ trick: [{ seat: 3, card: '9D' }] }));
-    expect(log.map(words)).toEqual(['Di takes the trick.'], 'and the next trick beginning adds nothing');
-    expect(JSON.stringify(log)).not.toMatch(/cards\./, 'no card is named anywhere in it');
+    expect(words(log.at(-1))).toBe('Di played the 9 of diamonds.');
   });
 
   it('notes new hands, passing and the end of the game', () => {
@@ -346,19 +344,57 @@ describe('advanceLog', () => {
     expect(advanceLog([], at(), at({ phase: 'finished', winners: [1, 2] })).map(words)).toEqual(['The game is over: Bo and Cy win.']);
   });
 
-  it('keeps the hand being played and the one before it, and lets the rest go', () => {
-    // Not a memory of the whole evening: two hands is what the list is for, and what bounds its length.
-    const takes = (log, hand, seat) => advanceLog(log, at({ handNumber: hand, trickWinner: null }), at({ handNumber: hand, trickWinner: seat }));
-    const deals = (log, hand) => advanceLog(log, at({ handNumber: hand - 1 }), at({ handNumber: hand }));
+  it('keeps the trick being played and the one before it: at a table of four, the last eight cards', () => {
+    const one = [{ seat: 0, card: '2C' }, { seat: 1, card: '5C' }, { seat: 2, card: 'KC' }, { seat: 3, card: 'AC' }];
+    const two = [{ seat: 3, card: '9D' }, { seat: 0, card: '3D' }, { seat: 1, card: 'QD' }, { seat: 2, card: '7D' }];
+    let prev = at();
+    let log = [];
+    /** One more state arrives. */
+    const go = (next) => {
+      log = advanceLog(log, prev, next);
+      prev = next;
+    };
+    /** A trick played out card by card, ending with it complete on the table and its winner named. */
+    const playOut = (trickNumber, plays, winner) => {
+      for (let n = 1; n <= plays.length; n++) go(at({ trickNumber, trick: plays.slice(0, n), trickWinner: n === plays.length ? winner : null }));
+    };
 
-    let log = takes([], 1, 0);
-    log = deals(log, 2);
-    log = takes(log, 2, 1);
-    expect(log.map(words)).toEqual(['Ann takes the trick.', 'Hand 2 is dealt.', 'Bo takes the trick.'], 'both hands while the second is being played');
+    playOut(1, one, 3);
+    expect(log.map(words)).toEqual(['Ann played the 2 of clubs.', 'Bo played the 5 of clubs.', 'Cy played the king of clubs.', 'Di played the ace of clubs.', 'Di takes the trick.']);
 
-    log = deals(log, 3);
-    log = takes(log, 3, 2);
-    expect(log.map(words)).toEqual(['Hand 2 is dealt.', 'Bo takes the trick.', 'Hand 3 is dealt.', 'Cy takes the trick.'], 'and the first hand has gone');
+    playOut(2, two, 1);
+    expect(log.map(words)).toEqual(
+      [
+        'Ann played the 2 of clubs.',
+        'Bo played the 5 of clubs.',
+        'Cy played the king of clubs.',
+        'Di played the ace of clubs.',
+        'Di takes the trick.',
+        'Di played the 9 of diamonds.',
+        'Ann played the 3 of diamonds.',
+        'Bo played the queen of diamonds.',
+        'Cy played the 7 of diamonds.',
+        'Bo takes the trick.',
+      ],
+      'both tricks, which is eight cards at a table of four',
+    );
+
+    go(at({ trickNumber: 3, trick: [{ seat: 1, card: '4S' }] }));
+    expect(log.map(words)).toEqual(
+      ['Di played the 9 of diamonds.', 'Ann played the 3 of diamonds.', 'Bo played the queen of diamonds.', 'Cy played the 7 of diamonds.', 'Bo takes the trick.', 'Bo played the 4 of spades.'],
+      'and the first trick goes the moment the third begins',
+    );
+  });
+
+  it('files the deal and the end of a hand with the trick either side of them, so each goes when its trick does', () => {
+    let log = advanceLog([], at({ phase: 'passing' }), at({ phase: 'playing' }));
+    log = advanceLog(log, at(), at({ trick: [{ seat: 0, card: '2C' }] }));
+    expect(log.map(words)).toEqual(['The cards have been passed.', 'Ann played the 2 of clubs.'], 'the pass belongs to the first trick of the hand');
+
+    // The hand ends on its last trick, and the next hand is dealt into the first trick of its own.
+    log = advanceLog(log, at({ trickNumber: 13 }), at({ trickNumber: 13, phase: 'handEnd' }));
+    log = advanceLog(log, at({ trickNumber: 13, phase: 'handEnd' }), at({ handNumber: 2, trickNumber: 1 }));
+    expect(log.map(words)).toEqual(['Hand 1 is over.', 'Hand 2 is dealt.'], 'the first hand has gone, and what closed it is still there');
   });
 });
 

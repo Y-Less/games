@@ -85,6 +85,7 @@
   "log": {
     "dealt": "nobta'lu' may' {n}.",
     "passed": "ngeHlu'pu' navmey.",
+    "played": "{card} lan {name}.",
     "takesTrick": "may'Hom tlhap {name}.",
     "claims": "ratlhbogh {count} may'Hom tlhap {name}. | ratlhbogh {count} may'Hommey tlhap {name}.",
     "handOver": "rIn may' {n}."

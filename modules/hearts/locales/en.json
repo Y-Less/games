@@ -81,6 +81,7 @@
   "log": {
     "dealt": "Hand {n} is dealt.",
     "passed": "The cards have been passed.",
+    "played": "{name} played the {card}.",
     "takesTrick": "{name} takes the trick.",
     "claims": "{name} claims the remaining {count} trick. | {name} claims the remaining {count} tricks.",
     "handOver": "Hand {n} is over."
