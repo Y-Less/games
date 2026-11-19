@@ -20,14 +20,34 @@ players see are in `rules.md`; the module contract is in `../../MODULES.md`.
   through `useDixnt.js`: the room's state as the shell holds it, and the game's own view state, which is the Recent
   moves, the two word pop-ups and the lightbox.
 - `ai/` the computer players' decision logic: one file per AI and `ai/index.js` exporting `AIS` (see below).
-- `hints.txt` the word and phrase suggestions for the chooser (content, not interface: they are not translated).
+- `hints.txt` the word and phrase suggestions for the chooser, and the pool a game with no chooser takes its words
+  from (content, not interface: they are not translated).
 - `locales/en.json` every word a player reads, merged under `dixnt.` (see "Languages" in `../../MODULES.md`).
-- `*.test.js` the rules tests (`game`, `judging`, `turns`, `favourite`, `history`, `bots`) and `e2e.test.js`, `lifecycle.test.js`
-  and friends, which run the real site.
+- `*.test.js` the rules tests (`game`, `judging`, `noChooser`, `turns`, `favourite`, `history`, `bots`) and `e2e.test.js`,
+  `lifecycle.test.js` and friends, which run the real site.
+
+## Play styles, and the game with no chooser
+
+The host picks one of three ways of judging a turn (`room.judging`: `everyone`, `chooser` or `favourite`; see
+`rules.md`), and beside it may turn the word-chooser off altogether (`room.noChooser`).  With no chooser the word is
+picked at random from the same suggestions a chooser would have been offered, the `word` phase never happens, and
+**every** player puts a card down rather than everybody but one.  It goes with the two styles that end in a vote;
+`favourite` is the chooser picking the card they like best, so the pair refuses itself whichever setting arrives
+first (`noChooserNeedsVotes`), and a save holding both loads with the variant dropped.
+
+A turn still belongs to a player either way, because that is what the length of a game is counted in: `room.chooserId`
+goes round the table as ever, so a game is players x rounds turns long whichever way it is played.  What changes is
+what that player does.  Under `everyone` they have no part of their own, and the view says so by sending
+`chooserId: null` (and `isChooser: false` for everybody), so nobody is marked out at the table for a role they do not
+have; under `chooser` they are the judge, play a card like everybody else, and are never the one kept in the dark,
+which would otherwise hand them the fooled points for accusing anybody at all.  Whether a player is in this turn's
+cards is the view's `playsCard` (and `players[].plays`), which is **not** the opposite of `isChooser`: the client
+reads it wherever it used to ask who the chooser was.
 
 ## Scoreboard
 
-A **turn** is one player's go as the word-chooser; a **round** is everyone having had one, and `room.rounds` is how
+A **turn** is one player's go as the word-chooser (or, with no chooser, simply their go); a **round** is everyone
+having had one, and `room.rounds` is how
 many rounds the host set the game to run for.  Every completed turn is appended to `history` in the room state (saved
 in `rooms.json`):
 `{ label, deltas: { playerId: points }, notes: { playerId: note } }`, where `label` and each `note` are **messages**
@@ -54,7 +74,7 @@ sentence:
 
 - **Refusals.** Every rule returns `{ ok: false, error: <code>, params? }`, where the code is a refusal **code** and
   `params` are the values that text needs.  A code is looked up under `errors.` in `locales/en.json` first and
-  `src/locales/en.json` second, so Dixnt's own (`typeWord`, `chooserOnlyVotes`, `handSizeRange`, `notEnoughCards`
+  `src/locales/en.json` second, so Dixnt's own (`typeWord`, `chooserOnlyVotes`, `handSizeRange`, `notEnoughCards`, `noChooserNeedsVotes`
   ...) sit beside the shared ones (`notInGame`, `hostOnlyStart`, `notInHand`, `rounds`, `noGameWithCode` ...).
   An unexpected throw becomes `serverError`.
 - **Text in a view.** The scoreboard's turn labels and notes are messages (above), and so is the label of the
@@ -95,7 +115,8 @@ fixed seat count (3 to 12 players), so there are no "empty seats": the lobby's p
 `PlayerListPanel`, with **Add a computer player**, **Remove** beside each one, and **Fill up to 3 players with
 computer players** (socket events `addBot`, `removeBot { seat }` and `fillBots { count }`; the count defaults to the
 minimum and is capped at 12).  All three are host-only and lobby-only.  People and computer players share the 12
-places.  The rest of the lobby (the play style, the categories, the hand size and the length) is Dixnt's own, in
+places.  The rest of the lobby (the play style, whether anybody chooses the word, the categories, the hand size and
+the length) is Dixnt's own, in
 `LobbyView.vue`, and the host changes any of it with one `settings` message.
 
 - **AIs.** `start` deals each computer player an AI with `assignAIs(AIS, ids, rng)` using the game's rng and stores its
@@ -108,7 +129,8 @@ places.  The rest of the lobby (the play style, the categories, the hand size an
   only, or the chooser's favourite card).  Every decision is made from that seat's own `viewFor`, so a bot sees only
   what a person in the seat would: its hand, the clue unless it is the imposter, the table once cards are in.  An AI that
   throws or answers with something illegal is replaced by a random legal choice, and an empty hint list falls back to a
-  few built-in words.  Timers are rebuilt when the server starts, so saved rooms carry on.
+  few built-in words.  With no chooser there is simply no word to play: the rules pick one as the turn opens, from
+  the same pool and with the same fallback, and the bots go straight to their cards.  Timers are rebuilt when the server starts, so saved rooms carry on.
 - **Next turn.** Bots never press "Next turn" or start the game: the host does, as before, so they cannot hold
   anything up.
 - **Leaving and arriving.** This is the shared behaviour of `shared/roster.js`, and nothing about it is Dixnt's own.

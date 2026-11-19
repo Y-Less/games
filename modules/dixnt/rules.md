@@ -4,13 +4,13 @@ Dixnt is a card game for three or more friends.  Every card is a picture, and ev
 
 ## Starting a game
 
-One player starts a new game and becomes the host.  Everyone else joins with the three-word game code (such as `boss-aware-you`) or with the invite link.  The host chooses the play style, the card categories, the hand size and the length of the game in the lobby, then starts the game once at least three players are there.
+One player starts a new game and becomes the host.  Everyone else joins with the three-word game code (such as `boss-aware-you`) or with the invite link.  The host chooses the play style, whether anybody chooses the word, the card categories, the hand size and the length of the game in the lobby, then starts the game once at least three players are there.
 
 ## How a turn works
 
 A **turn** is one player's go as the chooser, and a **round** is everyone having had one.
 
-1. The **chooser** (the role passes round the table in the order players joined) types a word or phrase.  The **Give me ideas** button suggests three.
+1. The **chooser** (the role passes round the table in the order players joined) types a word or phrase.  The **Give me ideas** button suggests three.  With "No chooser" on (below) this step is skipped: a word is picked at random, and everyone plays a card.
 2. Everybody else sees the word and plays one card from their hand that fits it.  The card leaves your hand as you play it.  In the two imposter styles, one random player sees ??? instead of the word and has to bluff.  You can swap your card for another until everyone has played.
 3. All the cards and the real word are revealed.  Explain why your card fits, and listen to everyone else.
 4. The turn is judged according to the play style (below).
@@ -39,9 +39,22 @@ The host picks one of three styles in the lobby.
 - The chooser picks the card they like best, which ends the turn.
 - The player who played that card scores 2 points.
 
+## No chooser
+
+The host can also turn the chooser off altogether, with the tick box beside the play style.  Then:
+
+- Nobody types a word.  One is picked at random for the whole table, and the turn begins with it already chosen.
+- **Everybody** plays a card, the player whose turn it is included, so there is one more card on the table than usual.
+- One random player still sees ??? instead of the word and still has to bluff.
+
+It goes with the two styles above that end in a vote.  Favourite card is the chooser picking the one they like best, so it cannot be played this way, and the two cannot both be turned on.
+
+- With **Everyone votes**, nobody has a part of their own: the word arrives, everybody plays, everybody votes.
+- With **Only the chooser decides**, the player whose turn it is is the judge.  They play a card like everyone else, and they are never the one kept in the dark.
+
 ## Length of the game
 
-The host decides how many rounds the game runs for (1 to 10, two by default), which is how many times each player chooses the word.  The game ends once everyone has had all their turns, and the player with the most points wins.  If several players share the top score, they all win.  A skipped turn does not use up anyone's turn.
+The host decides how many rounds the game runs for (1 to 10, two by default), which is how many times each player chooses the word — or, with no chooser, how many times each player's turn comes round.  Either way the game is the same length.  It ends once everyone has had all their turns, and the player with the most points wins.  If several players share the top score, they all win.  A skipped turn does not use up anyone's turn.
 
 ## Card categories
 

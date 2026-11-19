@@ -153,7 +153,8 @@ async function playToEnd(humans, { vote = (p, turn) => p.state.voteTargets[turn 
       await waitFor(() => host.state.phase !== 'word' || turnOf() !== turn, 'the word to be chosen');
     } else if (phase === 'picking') {
       for (const p of humans) {
-        if (p.state.isChooser || p.state.myPick !== null) continue;
+        // Whether you are in this turn's cards, not whether you are the chooser: with no chooser, everybody is.
+        if (!p.state.playsCard || p.state.myPick !== null) continue;
         const reply = await p.call('playCard', { cardId: p.state.hand[0] });
         assert.equal(reply.ok, true, reply.error);
       }
@@ -199,8 +200,10 @@ function expectedExtras(rounds) {
   const extras = {};
   const of = (name) => (extras[name] ??= { roundsAsImposter: 0, timesFooledGroup: 0, correctGuesses: 0, cardsPlayed: 0 });
   // A table keyed by a player id has text keys, while a person's id is their account number: compare as text.
-  for (const { results, chooserId, names } of rounds) {
-    for (const id of Object.keys(names)) if (id !== String(chooserId)) of(names[id]).cardsPlayed++;
+  for (const { results, names } of rounds) {
+    // Who put a card down: the turn's tally holds one entry for each of them, which is everybody when nobody chooses
+    // the word, and everybody but the chooser when somebody does.
+    for (const id of Object.keys(names)) if (id in results.tally) of(names[id]).cardsPlayed++;
     if (!results.imposterId) continue;
     const imposter = of(names[results.imposterId]);
     imposter.roundsAsImposter++;
@@ -488,7 +491,7 @@ test('the round history is saved, abandoned rounds are not in it, and an old sav
  * Plays a whole game against three of the lobby's computer players, which the server plays.  The human host joins
  * first, picks the settings, then plays (or judges) alongside them.
  */
-async function playComputerGame(t, { judging, categories }) {
+async function playComputerGame(t, { judging, categories, noChooser = false }) {
   const { site, person, userId } = await startDixnt(t);
   const human = await person('host').open();
 
@@ -499,12 +502,13 @@ async function playComputerGame(t, { judging, categories }) {
     [['alpha', 120, true], ['beta', 120, true]],
     'the server offers both categories, all selected by default',
   );
-  assert.equal((await human.call('settings', { judging, categories, rounds: 1 })).ok, true);
+  assert.equal((await human.call('settings', { judging, noChooser, categories, rounds: 1 })).ok, true);
 
   assert.equal((await human.call('fillBots', { count: 4 })).ok, true);
   await until(() => human.state?.players.length === 4, 'the computer players to join');
   assert.equal(human.state.players.filter((p) => p.bot).length, 3);
   assert.equal(human.state.judging, judging);
+  assert.equal(human.state.noChooser, noChooser);
   assert.equal((await human.call('start')).ok, true);
 
   for (const cardId of human.state.hand) {
@@ -516,9 +520,16 @@ async function playComputerGame(t, { judging, categories }) {
   for (const { results } of rounds) {
     assert.equal(results.judging, judging);
     assert.equal(Object.keys(results.votes).length, judging === 'everyone' ? 4 : 1);
+    // Everybody plays a card with no chooser, so every player has one to be named; otherwise all but the chooser do.
+    assert.equal(Object.keys(results.tally).length, noChooser ? 4 : 3);
   }
-  // The game could not have reached the end unless a computer player chose a word on the rounds it was the chooser.
-  assert.ok(rounds.some(({ chooserId }) => human.state.players.find((p) => p.id === chooserId)?.bot), 'a computer player was the chooser at least once');
+  if (noChooser && judging === 'everyone') {
+    // Nobody chose the word and nobody judged, so no turn named anybody as having a part of their own.
+    assert.deepEqual(rounds.map(({ chooserId }) => chooserId), [null, null, null, null]);
+  } else {
+    // The game could not have reached the end unless a computer player chose a word on the rounds it was the chooser.
+    assert.ok(rounds.some(({ chooserId }) => human.state.players.find((p) => p.id === chooserId)?.bot), 'a computer player was the chooser at least once');
+  }
 
   if (judging !== 'everyone') {
     const allowed = judging === 'favourite' ? [2] : [1, 5];
@@ -548,6 +559,12 @@ test('computer players play a whole game in chooser-only judging, with one categ
 
 test('computer players play the favourite style: everyone sees the word, the chosen card scores 2', (t) =>
   playComputerGame(t, { judging: 'favourite', categories: ['alpha'] }));
+
+test('computer players play a whole game nobody chooses the word for: every player has a card on the table', (t) =>
+  playComputerGame(t, { judging: 'everyone', categories: ['alpha', 'beta'], noChooser: true }));
+
+test('computer players play a game nobody chooses the word for, judged by one player each turn', (t) =>
+  playComputerGame(t, { judging: 'chooser', categories: ['beta'], noChooser: true }));
 
 test('several games run side by side, each with its own invite code', async (t) => {
   const { people4, person } = await startDixnt(t);
