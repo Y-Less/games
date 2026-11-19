@@ -73,10 +73,19 @@ const suddenOut = computed(() => new Set(duel.value?.sudden?.out ?? []));
 /** The pair being fought right now, for the glow on the table. */
 const fighting = computed(() => (phase.value === 'revealing' && duel.value ? duel.value.at : -1));
 
-/** How wide to draw a card so that the battlefield and your hand fit the room the frame gives them. */
-const cardWidth = (area) => Math.max(44, Math.round(Math.min((area.width - 80) / 5, (area.height - 70) / 5)));
-/** The other player's hand is drawn down the narrow column, so it gets its own, smaller, size. */
-const smallWidth = (area) => Math.max(34, Math.round(Math.min((area.width - 24) / 5, (area.height - 40) / 9)));
+/** The gap between two cards. */
+const GAP = 8;
+/**
+ * How wide to draw a card so that all four rows of five — their hand, their side, your side, your hand — fit the room
+ * the frame gives the table, at every window the game can be played in.
+ *
+ * The frame hands its slots the width of the whole row in `width` and the width of each part in `left` and `right`,
+ * so a game that sizes anything off `width` draws it too wide and lets it off the side of the table.  This one asks
+ * for every column, so `left` is the lot.
+ */
+const cardWidth = (area) => Math.max(34, Math.round(Math.min((area.left - 6 * GAP) / 5, ((area.height - 56) * 3) / 20)));
+/** A card's height at that width: the art is 3:5.  A row of no cards keeps it, so that nothing on the table moves. */
+const cardHeight = (area) => Math.round((cardWidth(area) * 5) / 3);
 
 /** The scoreboard's players, straight from the server, plus the pop-up's wiring. */
 const scorePlayers = computed(() => s.value.scoreboard.players);
@@ -170,7 +179,7 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
 </script>
 
 <template>
-  <GameFrame class="zurubang-table" :main-span="9">
+  <GameFrame class="zurubang-table" :main-span="12">
     <template #scorebar>
       <ScoreBoard
         :players="scorePlayers"
@@ -188,7 +197,7 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
     </template>
 
     <template #main="area">
-      <div class="arena">
+      <div class="arena" :style="{ gridColumn: `span ${area.mainSpan}` }">
         <PlayerPopup v-if="popupProps" v-bind="popupProps">
           <dl v-if="opened" class="facts">
             <dt>{{ t('popup.cards') }}</dt>
@@ -201,6 +210,11 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
             </template>
           </dl>
         </PlayerPopup>
+
+        <section class="their-hand" :style="{ height: `${cardHeight(area)}px` }" :aria-label="t('table.theirHandTitle', { name: theirSeat?.name ?? '' })">
+          <CardImage v-for="(card, i) in state.theirHand" :key="`t-${i}`" :card="card" :width="cardWidth(area)" />
+          <p v-if="!state.theirHand.length" class="muted">{{ t('table.theirHandOnTable', { name: theirSeat?.name ?? '' }) }}</p>
+        </section>
 
         <section class="battlefield" :aria-label="t('table.battlefield')">
           <div class="row-of-five" :aria-label="t('table.theirSide', { name: theirSeat?.name ?? '' })">
@@ -224,7 +238,7 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
           </div>
         </section>
 
-        <section class="hand" :aria-label="t('table.yourHand')">
+        <section class="hand" :style="{ height: `${cardHeight(area)}px` }" :aria-label="t('table.yourHand')">
           <CardImage
             v-for="card in state.hand"
             :key="card"
@@ -236,16 +250,6 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
           />
           <p v-if="!state.hand.length" class="muted">{{ t('table.handOnTable') }}</p>
         </section>
-      </div>
-    </template>
-
-    <template #others="area">
-      <div class="aside stack">
-        <h3>{{ t('table.theirHandTitle', { name: theirSeat?.name ?? '' }) }}</h3>
-        <div class="row-of-five">
-          <CardImage v-for="(card, i) in state.theirHand" :key="`t-${i}`" :card="card" :width="smallWidth(area)" />
-        </div>
-        <p class="muted small">{{ t('table.backsAreHonest') }}</p>
       </div>
     </template>
 
@@ -331,18 +335,13 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
   font-size: 0.8rem;
   color: var(--muted, #888);
 }
-.hand {
+.hand,
+.their-hand {
   display: flex;
   gap: 8px;
   justify-content: center;
+  align-items: center;
   min-height: 1rem;
-}
-.aside {
-  height: 100%;
-}
-.aside h3 {
-  margin: 0;
-  font-size: 0.95rem;
 }
 .fact {
   margin-right: 0.9rem;

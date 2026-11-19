@@ -12,6 +12,7 @@ const GAMES = [
   { id: 'hearts', name: 'Hearts', players: '1–7 players', category: 'Card games' },
   { id: 'nomination-whist', name: 'Nomination Whist', players: '1–7 players', category: 'Card games' },
   { id: 'tints-and-hints', name: 'Tints and Hints', players: '2–8 players', category: 'Party games' },
+  { id: 'zurubang', name: 'Zurubang', players: '1–2 players', category: 'Card games' },
 ];
 
 let world;

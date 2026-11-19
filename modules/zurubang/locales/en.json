@@ -250,7 +250,6 @@
     "yourHand": "Your hand",
     "handOnTable": "Every card you have is on the battlefield.",
     "theirHandTitle": "{name} holds",
-    "backsAreHonest": "Sixteen of the 21 cards behind a back really are that element.  One is a Zurubang.",
     "emptyPlace": "An empty place",
     "stack": "{n} ({count})",
     "drawFrom": "Draw from",
@@ -270,6 +269,7 @@
       "red": "A red back, which promises fire",
       "black": "A black back, which promises spirit",
       "blue": "A blue back, which promises water"
-    }
+    },
+    "theirHandOnTable": "Every card {name} has is on the battlefield."
   }
 }
