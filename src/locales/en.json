@@ -335,7 +335,7 @@
     "yourGame": "your game is open",
     "needsYou": "waiting for you to be ready",
     "waitingForOthers": "{n} of {of} ready",
-    "playing": "being played",
+    "inPlay": "being played",
     "readyUp": "I am ready",
     "notYet": "Not just yet",
     "readyExplain": "The next round starts when everybody says they are ready. Come back whenever suits you.",

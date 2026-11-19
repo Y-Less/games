@@ -50,6 +50,55 @@ it('English is the language everything else is measured against', () => {
   expect(Object.keys(english).sort()).toContain('site');
 });
 
+// A key written twice is not an error in JSON: the second value quietly wins, and the screen that asked for the first
+// shows the second's words.  Nothing above can see it, because by the time a file is imported the two have become
+// one, so this reads the files as they are written.
+const rawFiles = { ...import.meta.glob('./locales/*.json', { eager: true, query: '?raw', import: 'default' }), ...import.meta.glob('../modules/*/locales/*.json', { eager: true, query: '?raw', import: 'default' }) };
+
+/**
+ * Every key in a JSON text, dotted, in the order it is written — including one written twice.
+ *
+ * It walks the text rather than the parsed object for exactly that reason.  Strings are read whole, so a `{` in
+ * somebody's words ("{count} players") is not mistaken for the start of a block.
+ *
+ * @param {string} text  the file as it is written
+ * @returns {string[]} the paths, with duplicates kept
+ * Side effects: none.
+ */
+function keysWritten(text) {
+  const keys = [];
+  const path = [];
+  let string = null; // the string just read, which is a key if a ':' comes next
+  let pending = null; // the key whose value is being read, which names the block if that value is one
+  for (let i = 0; i < text.length; i++) {
+    const letter = text[i];
+    if (letter === '"') {
+      string = '';
+      for (i++; text[i] !== '"'; i++) {
+        if (text[i] !== '\\') string += text[i];
+        else string += text[++i];
+      }
+    } else if (letter === ':' && string !== null) {
+      keys.push([...path, string].filter(Boolean).join('.')); // the outermost block is nameless, so it names nothing
+      pending = string;
+      string = null;
+    } else if (letter === '{') {
+      path.push(pending ?? '');
+      pending = null;
+    } else if (letter === '}') {
+      path.pop();
+    } else if (letter === ',') {
+      string = pending = null;
+    }
+  }
+  return keys;
+}
+
+it.each(Object.keys(rawFiles))('%s says each key once', (file) => {
+  const written = keysWritten(rawFiles[file]);
+  expect(written.filter((key, at) => written.indexOf(key) !== at)).toEqual([]);
+});
+
 describe.runIf(others.length).each(others)('the %s translation', (lang) => {
   const files = filesFor(lang);
   // How many forms this language may give a count: as many as its own rules use, or as many as the English offers for

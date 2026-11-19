@@ -311,7 +311,7 @@
     "yourGame": "あなたのゲームが始まっています",
     "needsYou": "あなたの準備を待っています",
     "waitingForOthers": "{of} 人中 {n} 人が準備完了",
-    "playing": "対戦中",
+    "inPlay": "対戦中",
     "readyUp": "準備できました",
     "notYet": "まだです",
     "readyExplain": "全員が準備できたら次のラウンドが始まります。都合のよいときに戻ってきてください。",

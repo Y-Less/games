@@ -36,7 +36,7 @@ function standing(row) {
   if (row.yourTable) return { key: 'yourGame', urgent: true };
   if (row.waiting && !row.youReady) return { key: 'needsYou', urgent: true };
   if (row.waiting) return { key: 'waitingForOthers', urgent: false };
-  return { key: 'playing', urgent: false };
+  return { key: 'inPlay', urgent: false };
 }
 
 /** The game's name in the reader's language, or the one the server gave when the site does not know it. */
