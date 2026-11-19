@@ -1,0 +1,175 @@
+// The Zurubang deck: 105 cards, as data.  This file says what a card *is* — its back, the element on its face, its
+// power, its abilities, and which talent it has — and never what a talent does: the rules of a talent are duel.js, and
+// the words of one are locales/en.json.  There is no English here at all, by design: the site's translation check reads
+// every string literal in a module, and a hundred card names written in a .js file would be a hundred pieces of
+// untranslatable text.  A card's name is `cards.<id>` in the locale file and its talent's text `cards.talent.<key>`.
+//
+// Generated from the card sheets in ../../../zurubang (cards.json), which is where the artwork and the rulebook live.
+// The sheets carry 107 faces: a second, uncensored artwork of the Harpy and of the Succubus, which this deck leaves
+// out, so that the deck is the 105 cards the rulebook counts.
+//
+// Depends on nothing.
+
+/** The five card backs, and the element each one promises.  A back can lie: the face is what counts in a duel. */
+export const BACK_ELEMENT = { white: 'air', green: 'earth', red: 'fire', black: 'spirit', blue: 'water' };
+/** The five backs, in the order a hand is sorted and the lobby lists them. */
+export const BACKS = Object.keys(BACK_ELEMENT);
+/** The five elements a face can be.  A face may also be 'none', which neither wins nor loses on element. */
+export const ELEMENTS = Object.values(BACK_ELEMENT);
+/**
+ * Which element each one beats: spirit beats air beats water beats fire beats earth, and earth beats spirit.  The
+ * circle closes, so every element beats exactly one and loses to exactly one.
+ */
+export const BEATS = { spirit: 'air', air: 'water', water: 'fire', fire: 'earth', earth: 'spirit' };
+/** The three abilities a card's face can carry. */
+export const ABILITIES = ['flying', 'shooting', 'destroying'];
+
+/**
+ * Every card in the deck, in sheet order.  `power` is null for the five Zurubangs, whose printed power is infinite;
+ * `talent` is the key of its talent (shared with other cards, or its own), or null; `position` is the battlefield
+ * position an Energy Knight is at home on.
+ *
+ * @type {{ id: string, back: string, face: string, power: number | null, abilities: string[], talent: string | null,
+ *   position?: number }[]}
+ */
+export const CARDS = [
+  { id: 'white-01', back: 'white', face: 'air', power: 11, abilities: ['flying'], talent: 'dragon' },
+  { id: 'white-02', back: 'white', face: 'none', power: null, abilities: [], talent: 'zurubang' },
+  { id: 'white-03', back: 'white', face: 'air', power: 1, abilities: ['flying'], talent: null },
+  { id: 'white-04', back: 'white', face: 'air', power: 1, abilities: [], talent: 'mercy-twister' },
+  { id: 'white-05', back: 'white', face: 'earth', power: 2, abilities: ['flying'], talent: null },
+  { id: 'white-06', back: 'white', face: 'air', power: 2, abilities: [], talent: null },
+  { id: 'white-07', back: 'white', face: 'air', power: 3, abilities: [], talent: null },
+  { id: 'white-08', back: 'white', face: 'air', power: 3, abilities: [], talent: null },
+  { id: 'white-09', back: 'white', face: 'none', power: 4, abilities: ['shooting'], talent: null },
+  { id: 'white-10', back: 'white', face: 'air', power: 4, abilities: ['flying', 'shooting'], talent: null },
+  { id: 'white-11', back: 'white', face: 'air', power: 5, abilities: [], talent: 'hill-dwarf' },
+  { id: 'white-12', back: 'white', face: 'air', power: 5, abilities: [], talent: 'energy-knight', position: 4 },
+  { id: 'white-13', back: 'white', face: 'air', power: 6, abilities: ['flying'], talent: null },
+  { id: 'white-15', back: 'white', face: 'air', power: 6, abilities: ['flying'], talent: null },
+  { id: 'white-16', back: 'white', face: 'air', power: 7, abilities: ['flying'], talent: null },
+  { id: 'white-17', back: 'white', face: 'air', power: 7, abilities: [], talent: 'indestructible' },
+  { id: 'white-18', back: 'white', face: 'air', power: 8, abilities: [], talent: 'elemental' },
+  { id: 'white-19', back: 'white', face: 'none', power: 8, abilities: ['shooting', 'destroying'], talent: null },
+  { id: 'white-20', back: 'white', face: 'air', power: 9, abilities: ['flying'], talent: 'ki-rin' },
+  { id: 'white-21', back: 'white', face: 'none', power: 9, abilities: [], talent: null },
+  { id: 'white-22', back: 'white', face: 'air', power: 10, abilities: ['shooting'], talent: null },
+  { id: 'green-01', back: 'green', face: 'none', power: null, abilities: [], talent: 'zurubang' },
+  { id: 'green-02', back: 'green', face: 'none', power: 1, abilities: ['destroying'], talent: null },
+  { id: 'green-03', back: 'green', face: 'earth', power: 1, abilities: [], talent: 'gnomeling' },
+  { id: 'green-04', back: 'green', face: 'earth', power: 2, abilities: [], talent: 'bembi' },
+  { id: 'green-05', back: 'green', face: 'water', power: 2, abilities: ['flying'], talent: null },
+  { id: 'green-06', back: 'green', face: 'earth', power: 3, abilities: ['destroying'], talent: null },
+  { id: 'green-07', back: 'green', face: 'earth', power: 3, abilities: [], talent: null },
+  { id: 'green-08', back: 'green', face: 'earth', power: 4, abilities: ['flying'], talent: null },
+  { id: 'green-09', back: 'green', face: 'earth', power: 4, abilities: [], talent: 'beast-kid' },
+  { id: 'green-10', back: 'green', face: 'earth', power: 5, abilities: [], talent: 'carrot-knight' },
+  { id: 'green-11', back: 'green', face: 'earth', power: 5, abilities: [], talent: 'energy-knight', position: 1 },
+  { id: 'green-12', back: 'green', face: 'earth', power: 6, abilities: [], talent: 'druid' },
+  { id: 'green-13', back: 'green', face: 'earth', power: 6, abilities: ['shooting'], talent: null },
+  { id: 'green-14', back: 'green', face: 'earth', power: 7, abilities: ['shooting'], talent: null },
+  { id: 'green-15', back: 'green', face: 'earth', power: 7, abilities: [], talent: null },
+  { id: 'green-16', back: 'green', face: 'earth', power: 8, abilities: [], talent: 'elemental' },
+  { id: 'green-17', back: 'green', face: 'none', power: 8, abilities: [], talent: null },
+  { id: 'green-18', back: 'green', face: 'none', power: 9, abilities: [], talent: null },
+  { id: 'green-19', back: 'green', face: 'earth', power: 9, abilities: [], talent: null },
+  { id: 'green-20', back: 'green', face: 'earth', power: 10, abilities: ['shooting'], talent: null },
+  { id: 'green-21', back: 'green', face: 'earth', power: 11, abilities: ['flying'], talent: 'dragon' },
+  { id: 'red-01', back: 'red', face: 'none', power: null, abilities: [], talent: 'zurubang' },
+  { id: 'red-02', back: 'red', face: 'fire', power: 1, abilities: [], talent: 'cole-sage' },
+  { id: 'red-03', back: 'red', face: 'fire', power: 1, abilities: ['destroying'], talent: null },
+  { id: 'red-04', back: 'red', face: 'air', power: 2, abilities: ['flying'], talent: null },
+  { id: 'red-05', back: 'red', face: 'none', power: 2, abilities: [], talent: 'ember-monkey' },
+  { id: 'red-06', back: 'red', face: 'fire', power: 3, abilities: [], talent: null },
+  { id: 'red-07', back: 'red', face: 'fire', power: 3, abilities: ['shooting'], talent: null },
+  { id: 'red-08', back: 'red', face: 'fire', power: 4, abilities: ['shooting'], talent: null },
+  { id: 'red-09', back: 'red', face: 'fire', power: 4, abilities: [], talent: 'swap' },
+  { id: 'red-10', back: 'red', face: 'fire', power: 5, abilities: [], talent: null },
+  { id: 'red-11', back: 'red', face: 'fire', power: 5, abilities: [], talent: 'energy-knight', position: 2 },
+  { id: 'red-12', back: 'red', face: 'fire', power: 6, abilities: [], talent: 'troll' },
+  { id: 'red-13', back: 'red', face: 'none', power: 6, abilities: [], talent: null },
+  { id: 'red-14', back: 'red', face: 'fire', power: 7, abilities: ['destroying'], talent: null },
+  { id: 'red-15', back: 'red', face: 'fire', power: 7, abilities: ['shooting'], talent: null },
+  { id: 'red-16', back: 'red', face: 'fire', power: 8, abilities: [], talent: 'elemental' },
+  { id: 'red-17', back: 'red', face: 'fire', power: 8, abilities: [], talent: 'ogre-mage' },
+  { id: 'red-18', back: 'red', face: 'fire', power: 9, abilities: ['flying', 'destroying'], talent: null },
+  { id: 'red-19', back: 'red', face: 'none', power: 9, abilities: [], talent: null },
+  { id: 'red-20', back: 'red', face: 'fire', power: 10, abilities: ['flying'], talent: null },
+  { id: 'red-21', back: 'red', face: 'fire', power: 11, abilities: ['flying'], talent: 'dragon' },
+  { id: 'black-01', back: 'black', face: 'none', power: null, abilities: [], talent: 'zurubang' },
+  { id: 'black-02', back: 'black', face: 'spirit', power: 1, abilities: ['flying'], talent: null },
+  { id: 'black-03', back: 'black', face: 'spirit', power: 1, abilities: [], talent: 'sorcerer-apprentice' },
+  { id: 'black-04', back: 'black', face: 'fire', power: 2, abilities: ['flying'], talent: null },
+  { id: 'black-05', back: 'black', face: 'spirit', power: 2, abilities: [], talent: null },
+  { id: 'black-06', back: 'black', face: 'spirit', power: 3, abilities: [], talent: 'swap' },
+  { id: 'black-07', back: 'black', face: 'spirit', power: 3, abilities: [], talent: 'indestructible' },
+  { id: 'black-08', back: 'black', face: 'spirit', power: 4, abilities: [], talent: 'dark-warlord' },
+  { id: 'black-09', back: 'black', face: 'none', power: 4, abilities: [], talent: 'melody' },
+  { id: 'black-10', back: 'black', face: 'spirit', power: 5, abilities: [], talent: 'energy-knight', position: 5 },
+  { id: 'black-11', back: 'black', face: 'spirit', power: 5, abilities: ['shooting'], talent: null },
+  { id: 'black-12', back: 'black', face: 'none', power: 6, abilities: [], talent: null },
+  { id: 'black-13', back: 'black', face: 'spirit', power: 6, abilities: ['flying'], talent: null },
+  { id: 'black-15', back: 'black', face: 'spirit', power: 7, abilities: ['destroying'], talent: null },
+  { id: 'black-16', back: 'black', face: 'spirit', power: 7, abilities: [], talent: 'indestructible' },
+  { id: 'black-17', back: 'black', face: 'spirit', power: 8, abilities: [], talent: 'elemental' },
+  { id: 'black-18', back: 'black', face: 'spirit', power: 8, abilities: ['flying'], talent: null },
+  { id: 'black-19', back: 'black', face: 'spirit', power: 9, abilities: [], talent: 'beholder' },
+  { id: 'black-20', back: 'black', face: 'none', power: 9, abilities: [], talent: null },
+  { id: 'black-21', back: 'black', face: 'spirit', power: 10, abilities: [], talent: 'necromancer' },
+  { id: 'black-22', back: 'black', face: 'spirit', power: 11, abilities: ['flying'], talent: 'dragon' },
+  { id: 'blue-01', back: 'blue', face: 'none', power: null, abilities: [], talent: 'zurubang' },
+  { id: 'blue-02', back: 'blue', face: 'water', power: 1, abilities: ['destroying'], talent: null },
+  { id: 'blue-03', back: 'blue', face: 'water', power: 1, abilities: ['shooting'], talent: null },
+  { id: 'blue-04', back: 'blue', face: 'water', power: 2, abilities: [], talent: 'otter-warrior' },
+  { id: 'blue-05', back: 'blue', face: 'spirit', power: 2, abilities: ['flying'], talent: null },
+  { id: 'blue-06', back: 'blue', face: 'water', power: 3, abilities: [], talent: null },
+  { id: 'blue-07', back: 'blue', face: 'water', power: 3, abilities: [], talent: 'swap' },
+  { id: 'blue-08', back: 'blue', face: 'water', power: 4, abilities: ['flying'], talent: null },
+  { id: 'blue-09', back: 'blue', face: 'water', power: 4, abilities: ['shooting'], talent: null },
+  { id: 'blue-10', back: 'blue', face: 'water', power: 5, abilities: [], talent: 'energy-knight', position: 3 },
+  { id: 'blue-11', back: 'blue', face: 'none', power: 5, abilities: [], talent: null },
+  { id: 'blue-12', back: 'blue', face: 'none', power: 6, abilities: [], talent: null },
+  { id: 'blue-13', back: 'blue', face: 'water', power: 6, abilities: [], talent: 'troll' },
+  { id: 'blue-14', back: 'blue', face: 'water', power: 7, abilities: ['destroying'], talent: null },
+  { id: 'blue-15', back: 'blue', face: 'water', power: 7, abilities: [], talent: null },
+  { id: 'blue-16', back: 'blue', face: 'water', power: 8, abilities: [], talent: 'indestructible' },
+  { id: 'blue-17', back: 'blue', face: 'water', power: 8, abilities: [], talent: 'elemental' },
+  { id: 'blue-18', back: 'blue', face: 'water', power: 9, abilities: ['destroying'], talent: 'basilisk' },
+  { id: 'blue-19', back: 'blue', face: 'none', power: 9, abilities: ['shooting'], talent: null },
+  { id: 'blue-20', back: 'blue', face: 'water', power: 10, abilities: [], talent: 'indestructible' },
+  { id: 'blue-21', back: 'blue', face: 'water', power: 11, abilities: ['flying'], talent: 'dragon' },
+];
+
+/** Every card by id, for the lookups the rules do on every move. */
+const BY_ID = new Map(CARDS.map((card) => [card.id, card]));
+
+/**
+ * The card with this id.
+ * @param {unknown} id  anything a client might have sent
+ * @returns {object | null} the card, or null if there is no such card
+ * Side effects: none.
+ */
+export const cardOf = (id) => (typeof id === 'string' ? (BY_ID.get(id) ?? null) : null);
+
+/**
+ * Is this the id of a card in the deck?
+ * @param {unknown} id
+ * @returns {boolean}
+ * Side effects: none.
+ */
+export const isCard = (id) => cardOf(id) !== null;
+
+/**
+ * A fresh, unshuffled deck of every card's id.
+ * @returns {string[]} a new array each call
+ * Side effects: none.
+ */
+export const fullDeck = () => CARDS.map((card) => card.id);
+
+/**
+ * The back of a card, which both players may see at all times.
+ * @param {string} id
+ * @returns {string | null} the back's colour
+ * Side effects: none.
+ */
+export const backOf = (id) => cardOf(id)?.back ?? null;

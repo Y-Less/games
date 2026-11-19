@@ -1,0 +1,111 @@
+{
+  "id": "zurubang",
+  "name": "Zurubang",
+  "description": "A duelling card game for two, where the backs of your cards are never a secret and the faces always are.",
+  "minPlayers": 1,
+  "maxPlayers": 2,
+  "category": "cards",
+  "rules": "rules.md",
+  "stats": [
+    { "key": "duelsWon", "label": "Duels won", "agg": "sum" },
+    { "key": "duelsFought", "label": "Duels fought", "agg": "sum" },
+    { "key": "pairsWon", "label": "Fights won on the battlefield", "agg": "sum" },
+    { "key": "bestDuel", "label": "Most points from one duel", "agg": "max" },
+    { "key": "declined", "label": "Challenges you declined", "agg": "sum", "hidden": true },
+    { "key": "refused", "label": "Challenges the other player declined", "agg": "sum", "hidden": true },
+    { "key": "dumped", "label": "Times you threw your whole hand away", "agg": "sum", "hidden": true },
+    { "key": "rainbowWins", "label": "Duels won on a rainbow hand", "agg": "sum", "hidden": true },
+    { "key": "fiveOfAKindWins", "label": "Duels won on five of a kind", "agg": "sum", "hidden": true },
+    { "key": "suddenDeaths", "label": "Sudden deaths won", "agg": "sum", "hidden": true },
+    { "key": "zurubangWins", "label": "Fights your Zurubang won", "agg": "sum", "hidden": true },
+    { "key": "cleanSweeps", "label": "Duels you won every fight of", "agg": "sum", "hidden": true },
+    { "key": "destroyed", "label": "Cards you destroyed", "agg": "sum", "hidden": true }
+  ],
+  "achievements": [
+    {
+      "key": "duellist",
+      "name": "Duellist",
+      "text": "Win {n} duels",
+      "one": "Win a duel",
+      "levels": "easy",
+      "stat": "duelsWon"
+    },
+    {
+      "key": "sweep",
+      "name": "Clean sweep",
+      "text": "Win every one of the five fights in a duel {n} times",
+      "one": "Win every one of the five fights in a duel",
+      "levels": "medium",
+      "stat": "cleanSweeps"
+    },
+    {
+      "key": "fearsome",
+      "name": "Fearsome",
+      "text": "Have your challenge declined {n} times",
+      "one": "Have your challenge declined",
+      "levels": "medium",
+      "stat": "refused"
+    },
+    {
+      "key": "discretion",
+      "name": "Discretion",
+      "text": "Decline {n} challenges",
+      "one": "Decline a challenge",
+      "levels": "easy",
+      "stat": "declined"
+    },
+    {
+      "key": "rainbow",
+      "name": "Rainbow",
+      "text": "Win a duel holding all five backs {n} times",
+      "one": "Win a duel holding all five backs",
+      "levels": "hard",
+      "stat": "rainbowWins"
+    },
+    {
+      "key": "fiveofakind",
+      "name": "Five of a kind",
+      "text": "Win a duel holding five backs of one element",
+      "levels": "unlock",
+      "stat": "fiveOfAKindWins"
+    },
+    {
+      "key": "mentalist",
+      "name": "Mentalist",
+      "text": "Win {n} sudden deaths",
+      "one": "Win a sudden death",
+      "levels": "hard",
+      "stat": "suddenDeaths"
+    },
+    {
+      "key": "zurubang",
+      "name": "Zu-Ru-Bang!",
+      "text": "Win {n} fights with a Zurubang",
+      "one": "Win a fight with a Zurubang",
+      "levels": "medium",
+      "stat": "zurubangWins"
+    },
+    {
+      "key": "destroyer",
+      "name": "Destroyer",
+      "text": "Destroy {n} of the other player's cards",
+      "one": "Destroy one of the other player's cards",
+      "levels": "easy",
+      "stat": "destroyed"
+    },
+    {
+      "key": "points",
+      "name": "Running total",
+      "text": "Score {n} points",
+      "levels": "easy",
+      "stat": "totalScore"
+    },
+    {
+      "key": "collector",
+      "name": "The whole deck",
+      "label": "Different cards you have held",
+      "text": "Hold {n} different cards",
+      "levels": [10, 25, 50, 75, 105]
+    }
+  ]
+}
