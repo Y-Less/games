@@ -472,6 +472,34 @@ test('the list of your games gives a tournament one line, and the table it drew 
   assert.equal(site.games(1)[0].code, made.code);
 });
 
+test('the list has a way back into whatever room opening the game afresh would give you', async (t) => {
+  // Since the menu starts a game rather than resuming one, this list is the only way back into a room.  Whatever
+  // `resume` with no code would give somebody — which is the game they were last doing something in — the list must
+  // name, in every state an evening passes through.
+  const site = world(t);
+  const listed = async (id) => {
+    const back = await site.who(id).ask('resume', {});
+    return site.games(id).some((row) => row.code === back.code || row.yourTable === back.code);
+  };
+
+  const made = await site.who(1).ask('create');
+  assert.equal(await listed(1), true, 'a lobby of their own');
+
+  // A tournament being set up is still a lobby, and the people gathering in it have nothing else to come back to.
+  for (const id of [2, 3, 4]) await site.who(id).ask('join', { code: made.code });
+  await site.who(1).ask('settings', { tournament: { on: true } });
+  assert.deepEqual(site.games(1).map((row) => row.kind), ['game'], 'a tournament nobody has started is an ordinary lobby');
+  assert.equal(await listed(1), true, 'the host of a tournament not yet started');
+  assert.equal(await listed(3), true, 'and somebody who only joined it');
+
+  await site.who(1).ask('start');
+  await settled();
+  assert.equal(await listed(1), true, 'a round being played');
+
+  await finishTables(site, made.code);
+  assert.equal(await listed(1), true, 'a round waiting to be readied up for');
+});
+
 test('a tournament played to its end is no longer something to come back to', async (t) => {
   const site = world(t);
   const code = await tournament(site);

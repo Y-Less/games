@@ -540,9 +540,11 @@ export function createRoomServer(ctx, options) {
   function rowOf(room, userId) {
     const held = tournaments.rowFor(room, userId);
     if (held) return { ...held, kind: 'tournament' };
-    // A tournament with no row (finished, or one this person has withdrawn from) is not an ordinary game either:
-    // falling through would list its lobby as something to play.
-    if (tournaments.settingOf(room) || tournaments.parentOf(room)) return null;
+    // A tournament that has got going is the row above or nothing at all (it has finished, or this person has
+    // withdrawn from it), and its tables are reached through it rather than listed beside it.  One still in its
+    // lobby is an ordinary lobby — people gathering in a room, with nothing of an evening to say yet — and is listed
+    // as one, since the menu no longer resumes anything and this is the only way back to it.
+    if ((tournaments.settingOf(room) && room.phase !== 'lobby') || tournaments.parentOf(room)) return null;
     if (!game.isLive(room)) return null;
     // Whoever left a game that was already over is still on its standings, marked `left`, and is no longer one of its
     // people: neither a row for them nor a name for anybody else (see `people` in shared/members.js).
