@@ -53,7 +53,12 @@
     "welcome": "Welcome, {name}",
     "none": "No games are installed yet. Add one to the {folder} folder.",
     "players": "{count} player | {count} players",
-    "playersRange": "{min}–{max} players"
+    "playersRange": "{min}–{max} players",
+    "yours": "Your games",
+    "with": "with {who}",
+    "waitingForPlayers": "waiting for players",
+    "beingPlayed": "being played",
+    "carryOn": "Carry on"
   },
   "categories": {
     "party": "Party games",
@@ -330,7 +335,6 @@
     "played": "Played",
     "unfinished": "Nobody finished it",
     "sittingOut": "You are sitting this round out: there are not enough of you left for another game.  Everybody plays the same number of games.",
-    "mine": "Your tournaments",
     "go": "Go to it",
     "yourGame": "your game is open",
     "needsYou": "waiting for you to be ready",

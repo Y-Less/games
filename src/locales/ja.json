@@ -53,7 +53,12 @@
     "welcome": "{name}さん、ようこそ",
     "none": "まだゲームがありません。{folder}フォルダーに追加してください。",
     "players": "{count}人",
-    "playersRange": "{min}〜{max}人"
+    "playersRange": "{min}〜{max}人",
+    "yours": "進行中のゲーム",
+    "with": "対戦相手: {who}",
+    "waitingForPlayers": "参加者を待っています",
+    "beingPlayed": "対戦中",
+    "carryOn": "続きから"
   },
   "categories": {
     "party": "パーティーゲーム",
@@ -306,7 +311,6 @@
     "played": "終了",
     "unfinished": "誰も終わらせませんでした",
     "sittingOut": "このラウンドはお休みです。残りの人数ではもう一つゲームを組めません。対戦数は全員同じです。",
-    "mine": "参加中のトーナメント",
     "go": "開く",
     "yourGame": "あなたのゲームが始まっています",
     "needsYou": "あなたの準備を待っています",
