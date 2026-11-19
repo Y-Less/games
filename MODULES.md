@@ -255,15 +255,17 @@ last played in, and walking into a room neither leaves nor disturbs any other.  
 account — a lobby that said "you are already in a game", say — would be wrong.  Nothing in the rules vocabulary
 changes: every rule is asked about one room, as it always was.
 
-**The home page is where somebody picks one up.**  A card on the menu opens `/play/<id>?new`, which shows your entry
-screen rather than resuming anything, and the list above the cards is the way back into each game already on the go.
-A plain `/play/<id>` still resumes, so every invite link and bookmark means what it always did.
+**"Your games" in the top menu is where somebody picks one up.**  A card on the home page opens `/play/<id>?new`,
+which shows your entry screen rather than resuming anything, and the menu's own page lists every game already on the
+go.  A plain `/play/<id>` still resumes, so every invite link and bookmark means what it always did.
 
 **The site lists them** at `GET /api/my/games`, gathered from every module through the `gamesOf` on the handle
 `createRoomServer` returns, which is where somebody picks up a game again days later.  A game gives one line per
-unfinished room the person is in: its code, whether it is still in its lobby, and who else is at it (a tournament
-gives a line of its own instead, and its tables give none, since the tournament's row is the way into them).  No
-module writes any of this; it falls out of the rooms your rules have already made.
+room the person is in that is **being played**: its code and who else is at it (a tournament gives a line of its own
+instead, and its tables give none, since the tournament's row is the way into them).  A room nobody has started makes
+no line at all — a lobby is an invitation rather than a game, and there is nothing in it yet to come back to — and
+neither does one that has finished.  No module writes any of this; it falls out of the rooms your rules have already
+made.
 
 ### Where the rooms are kept
 

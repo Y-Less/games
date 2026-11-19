@@ -111,6 +111,7 @@ async function leaveSite() {
       </RouterLink>
       <nav v-if="session.user" class="links" :class="{ 'in-game': playing }" :aria-label="$t('nav.main')">
         <RouterLink to="/" :class="{ on: route.name === 'games' || playing }">{{ $t('nav.games') }}</RouterLink>
+        <RouterLink to="/my-games" :class="{ on: route.name === 'myGames' }">{{ $t('nav.myGames') }}</RouterLink>
         <RouterLink to="/stats" class="optional" :class="{ on: route.name === 'stats' }">{{ $t('nav.stats') }}</RouterLink>
         <RouterLink to="/achievements" class="optional" :class="{ on: route.name === 'achievements' }">{{ $t('nav.achievements') }}</RouterLink>
         <RouterLink to="/leaderboard" class="optional" :class="{ on: route.name === 'leaderboard' }">{{ $t('nav.leaderboard') }}</RouterLink>
@@ -290,7 +291,8 @@ async function leaveSite() {
     white-space: nowrap;
   }
 }
-/* On the narrowest phones the menu has Statistics, Achievements and Shop (and the coin count links to the shop), so the bar keeps just Games. */
+/* On the narrowest phones the menu has Statistics, Achievements and Shop (and the coin count links to the shop), so the
+   bar keeps just Games and Your games — the two halves of what somebody opens the site to do. */
 @media (max-width: 420px) {
   .links .optional {
     display: none;

@@ -532,6 +532,11 @@ export function createRoomServer(ctx, options) {
    * A table of a tournament is neither: the tournament's own row is the way into it (`yourTable`), and a row of its
    * own would be the same game offered twice.
    *
+   * **A room nobody has started makes no row at all.**  The list is the way back into a game that is being played;
+   * a lobby is a room somebody opened and an invitation they sent, and until it starts there is nothing in it to come
+   * back to.  That holds of a tournament's lobby too, which is a lobby like any other until its first round is dealt:
+   * it stops being one of these rows and becomes the row above.
+   *
    * @param {object} room  the room to describe
    * @param {number} userId  whose list it is
    * @returns {object | null}
@@ -541,10 +546,10 @@ export function createRoomServer(ctx, options) {
     const held = tournaments.rowFor(room, userId);
     if (held) return { ...held, kind: 'tournament' };
     // A tournament that has got going is the row above or nothing at all (it has finished, or this person has
-    // withdrawn from it), and its tables are reached through it rather than listed beside it.  One still in its
-    // lobby is an ordinary lobby — people gathering in a room, with nothing of an evening to say yet — and is listed
-    // as one, since the menu no longer resumes anything and this is the only way back to it.
+    // withdrawn from it), and its tables are reached through it rather than listed beside it.
     if ((tournaments.settingOf(room) && room.phase !== 'lobby') || tournaments.parentOf(room)) return null;
+    // Both families of game wait in a phase of that name, and start by leaving it.
+    if (room.phase === 'lobby') return null;
     if (!game.isLive(room)) return null;
     // Whoever left a game that was already over is still on its standings, marked `left`, and is no longer one of its
     // people: neither a row for them nor a name for anybody else (see `people` in shared/members.js).
@@ -553,7 +558,6 @@ export function createRoomServer(ctx, options) {
     return {
       kind: 'game',
       code: room.code,
-      lobby: room.phase === 'lobby', // both families of game wait in a phase of that name, and start by leaving it
       others: here.filter((member) => member.id !== userId).map((member) => String(member.name ?? '')),
       updatedAt: room.updatedAt ?? 0,
     };

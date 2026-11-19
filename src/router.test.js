@@ -49,7 +49,14 @@ describe('router guards', () => {
   it('lets a signed-in user reach protected pages', async () => {
     session.user = USER;
     expect((await go('/stats')).name).toBe('stats');
+    expect((await go('/my-games')).name).toBe('myGames');
     expect((await go('/play/hearts')).params.game).toBe('hearts');
+  });
+
+  it('asks a signed-out user for their games only once they are signed in', async () => {
+    const route = await go('/my-games');
+    expect(route.name).toBe('login');
+    expect(route.query.next).toBe('/my-games');
   });
 
   it('sends a signed-in user leaving login to a same-site next', async () => {

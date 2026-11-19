@@ -79,7 +79,7 @@ test('a tournament: the offer, the lobby it replaces, and the game it draws you 
   await ann.waitForCodeInUrl(code);
 }));
 
-test('the way back: a tournament is listed on the home page, and an ordinary game can be played beside it', { timeout: 120000 }, guarded('tournament-list', async () => {
+test('the way back: a tournament is listed under "Your games", and an ordinary game can be played beside it', { timeout: 120000 }, guarded('tournament-list', async () => {
   const ann = await world.newUser('ann');
   await ann.signUp('tourney', { displayName: 'Ann' });
   const bob = await world.newUser('bob');
@@ -96,25 +96,25 @@ test('the way back: a tournament is listed on the home page, and an ordinary gam
   await ann.clickButton('Start the tournament');
   await ann.waitForText('Round 1 of 1');
 
-  // A game is left and come back to as long as its people like, so the home page is the way back into it.
-  await ann.goto('/');
-  await ann.waitForText('Your games');
+  // A game is left and come back to as long as its people like, so "Your games" in the top menu is the way back in.
+  const menuItem = (label) => [...document.querySelectorAll('nav.links a')].find((link) => link.innerText.trim() === label) ?? null;
+  assert.equal(await ann.clickFound(menuItem, 'Your games'), true, 'the menu has the way back in it');
   await ann.waitForText('Round 1 of 1');
 
   // And taking another game of the same thing off the menu does not give the tournament up: an account may have as
   // many games on the go as it likes, so a card means a game of that rather than the last one back.
+  await ann.clickFound(menuItem, 'Games');
   await ann.clickButton('Hearts', { scope: 'main' });
   await ann.clickButton('Start a new game of Hearts');
   await ann.waitForText('Waiting for players');
   const other = await ann.inviteCode();
   assert.notEqual(other, code, 'a room of its own');
 
-  // Both are on the list now: the new game is waiting for somebody to play it, and the tournament says the plainest
-  // thing it can, which is that her game of it is open.
-  await ann.goto('/');
-  await ann.waitForText('Your games');
-  await ann.waitForText('waiting for players');
+  // Only one of them is on the list: a room nobody has started is an invitation she sent, not a game to come back to.
+  // The tournament is, and says the plainest thing it can, which is that her game of it is open.
+  await ann.clickFound(menuItem, 'Your games');
   await ann.waitForText('your game is open');
+  assert.equal(await ann.page.$$eval('.entry', (rows) => rows.length), 1, 'the game she has not started is not one she has on the go');
   await ann.clickButton('Go to your game');
   await ann.waitForSelector('.score-bar');
   await ann.waitForText('Round 1 of 1'); // the bar above the game, which came from the tournament

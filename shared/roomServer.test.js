@@ -329,9 +329,10 @@ test('a watcher of finished games that throws is logged, and the game is still r
   assert.ok(logs.some((line) => line.includes('the tour fell over')), `logged: ${logs.join(' | ')}`);
 });
 
-// The list of the games somebody has on the go (`gamesOf`), which the site gathers across every module and puts on
-// the home page.  Rooms are saved and loaded rather than played here, so that each rule about what makes a row can be
-// said in one line.  What a tournament makes of it is in shared/tournamentServer.test.js, where there is one to ask.
+// The list of the games somebody has on the go (`gamesOf`), which the site gathers across every module and puts
+// behind "Your games" in the top menu.  Rooms are saved and loaded rather than played here, so that each rule about
+// what makes a row can be said in one line.  What a tournament makes of it is in shared/tournamentServer.test.js,
+// where there is one to ask.
 const listingGame = { isLive: (room) => room.phase !== 'finished', isHuman: (member) => member?.kind === 'human' };
 /** One saved room of a list game, as recent as the sweep needs it to be. */
 const savedRoom = (code, phase, players, ago) => ({ code, phase, players, updatedAt: Date.now() - ago });
@@ -342,21 +343,31 @@ const listing = (t, rooms) => {
   return server;
 };
 
-test('the games you have on the go: every unfinished room you are in, the newest first, saying who else is at it', (t) => {
+test('the games you have on the go: every room you are in that is being played, the newest first, saying who else is at it', (t) => {
   const server = listing(t, [
-    savedRoom('one-two-three', 'lobby', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 2, name: 'Bob' }], 3000),
-    savedRoom('four-five-six', 'playing', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'bot', id: 'bot:1', name: 'Hazel' }], 1000),
+    savedRoom('four-five-six', 'playing', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'bot', id: 'bot:1', name: 'Hazel' }], 3000),
+    savedRoom('seven-eight-nine', 'playing', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 2, name: 'Bob' }], 1000),
     savedRoom('over-and-done', 'finished', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 3, name: 'Cal' }], 500),
   ]);
 
   const mine = server.gamesOf(1);
-  assert.deepEqual(mine.map((row) => row.code), ['four-five-six', 'one-two-three'], 'the newest news first, and a game that is over is not news');
+  assert.deepEqual(mine.map((row) => row.code), ['seven-eight-nine', 'four-five-six'], 'the newest news first, and a game that is over is not news');
   assert.deepEqual(mine.map((row) => row.kind), ['game', 'game']);
-  assert.deepEqual(mine.map((row) => row.lobby), [false, true], 'a game still waiting for people says so');
-  assert.deepEqual(mine[0].others, ['Hazel'], 'the computer players are company too');
-  assert.deepEqual(mine[1].others, ['Bob']);
-  assert.deepEqual(server.gamesOf(2).map((row) => row.code), ['one-two-three'], 'each person is told their own');
+  assert.deepEqual(mine[0].others, ['Bob']);
+  assert.deepEqual(mine[1].others, ['Hazel'], 'the computer players are company too');
+  assert.deepEqual(server.gamesOf(2).map((row) => row.code), ['seven-eight-nine'], 'each person is told their own');
   assert.deepEqual(server.gamesOf(9), [], 'somebody who is in nothing is in nothing');
+});
+
+test('a room nobody has started is not a game you have on the go', (t) => {
+  // A lobby is an invitation somebody sent, not a game: there is nothing in it yet to come back to, and the code is
+  // how anybody reaches one.  The same holds of a tournament's lobby, which is a lobby like any other until it starts.
+  const server = listing(t, [
+    savedRoom('one-two-three', 'lobby', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 2, name: 'Bob' }], 3000),
+    savedRoom('four-five-six', 'playing', [{ kind: 'human', id: 1, name: 'Ann' }], 1000),
+  ]);
+  assert.deepEqual(server.gamesOf(1).map((row) => row.code), ['four-five-six']);
+  assert.deepEqual(server.gamesOf(2), [], 'and somebody whose only room is a lobby has nothing on the go');
 });
 
 test('somebody who has left a game is neither given it back nor counted among the people still at it', (t) => {

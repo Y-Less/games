@@ -47,7 +47,8 @@
     "gold": "{n} Gilders: spend them in the shop",
     "yourGold": "Your Gilders",
     "yourAvatar": "Your avatar",
-    "noHelp": "There is no help for this page."
+    "noHelp": "There is no help for this page.",
+    "myGames": "Your games"
   },
   "games": {
     "welcome": "Welcome, {name}",
@@ -56,9 +57,10 @@
     "playersRange": "{min}–{max} players",
     "yours": "Your games",
     "with": "with {who}",
-    "waitingForPlayers": "waiting for players",
     "beingPlayed": "being played",
-    "carryOn": "Carry on"
+    "carryOn": "Carry on",
+    "noneYours": "You have no games on the go.  Pick one off the menu and start it.",
+    "listUnavailable": "Your games could not be fetched just now.  Try again in a moment."
   },
   "categories": {
     "party": "Party games",

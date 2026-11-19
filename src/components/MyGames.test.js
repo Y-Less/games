@@ -36,7 +36,6 @@ const game = (extra = {}) => ({
   game: 'hearts',
   name: 'Hearts',
   code: 'four-five-six',
-  lobby: false,
   others: ['Bob', 'Hazel'],
   updatedAt: 20,
   ...extra,
@@ -56,9 +55,10 @@ describe('the list of your games', () => {
     session.games = [{ id: 'hearts', name: 'Hearts', category: 'cards', minPlayers: 3, maxPlayers: 7 }];
   });
 
-  it('says nothing at all when you have none', async () => {
+  it('says you have none when you have none, rather than showing an empty page', async () => {
     const w = await listOf([]);
-    expect(w.text()).toBe('');
+    expect(w.text()).toContain('You have no games on the go.');
+    expect(w.findAll('.entry')).toHaveLength(0);
   });
 
   it('names a game and who else is at it, and leads back into it', async () => {
@@ -71,9 +71,9 @@ describe('the list of your games', () => {
     expect(w.find('a').text()).toBe('Carry on');
   });
 
-  it('says when a game is still waiting for its people, and says nothing of company it has not got', async () => {
-    const w = await listOf([game({ lobby: true, others: [] })]);
-    expect(w.text()).toContain('waiting for players');
+  it('says nothing of company it has not got', async () => {
+    const w = await listOf([game({ others: [] })]);
+    expect(w.text()).toContain('being played');
     expect(w.text()).not.toContain('with');
   });
 
@@ -104,10 +104,12 @@ describe('the list of your games', () => {
     expect(w.findAll('.entry').map((entry) => entry.find('a').attributes('href'))).toEqual(['/play/hearts?four-five-six', '/play/hearts?boss-aware-you']);
   });
 
-  it('shows the rest of the page when the list cannot be fetched', async () => {
+  it('says it could not ask rather than saying you have none', async () => {
+    // The two read the same to a glance and mean opposite things: one sends you to start a game, the other to wait.
     api.mockRejectedValue(new Error('offline'));
     const w = mount(MyGames);
     await flushPromises();
-    expect(w.text()).toBe('');
+    expect(w.text()).toContain('could not be fetched');
+    expect(w.text()).not.toContain('You have no games on the go.');
   });
 });

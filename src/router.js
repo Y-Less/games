@@ -6,6 +6,9 @@ import { safeNext, session } from './session.js';
 // Each view is imported lazily so a page's code is only fetched when it is first visited.
 const routes = [
   { path: '/', name: 'games', component: () => import('./views/GamesView.vue') },
+  // The games already on the go, which is the other half of the menu's first item: one page to start something, one
+  // to carry something on.
+  { path: '/my-games', name: 'myGames', component: () => import('./views/MyGamesView.vue') },
   { path: '/login', name: 'login', component: () => import('./views/AuthView.vue'), meta: { public: true } },
   { path: '/play/:game', name: 'play', component: () => import('./views/PlayView.vue'), props: true },
   { path: '/profile', name: 'profile', component: () => import('./views/ProfileView.vue') },

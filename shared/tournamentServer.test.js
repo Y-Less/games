@@ -468,6 +468,7 @@ test('the list of your games gives a tournament one line, and the table it drew 
 
   // An ordinary game of the same thing sits beside it: neither crowds the other out.
   const made = await site.who(1).ask('create');
+  await site.who(1).ask('start'); // a room nobody has started is not on the list at all
   assert.deepEqual(site.games(1).map((line) => line.kind), ['game', 'tournament'], 'the newer news first');
   assert.equal(site.games(1)[0].code, made.code);
 });
@@ -475,8 +476,10 @@ test('the list of your games gives a tournament one line, and the table it drew 
 test('leaving one game of several takes that one off your list and leaves the rest where they were', async (t) => {
   const site = world(t);
   const first = await site.who(1).ask('create');
-  const second = await site.who(1).ask('create');
   await site.who(2).ask('join', { code: first.code });
+  await site.who(1).ask('start');
+  const second = await site.who(1).ask('create');
+  await site.who(1).ask('start'); // both are being played: a room nobody has started is on nobody's list
   assert.deepEqual([...site.games(1).map((row) => row.code)].sort(), [first.code, second.code].sort(), 'both are hers');
   assert.deepEqual(site.games(1).find((row) => row.code === first.code).others, ['P2'], 'and one of them has company');
 
@@ -484,13 +487,14 @@ test('leaving one game of several takes that one off your list and leaves the re
   assert.deepEqual(await site.who(1).ask('leave'), { ok: true });
   assert.deepEqual(site.games(1).map((row) => row.code), [second.code], 'the game she left is no longer offered back');
   assert.deepEqual(site.games(2).map((row) => row.code), [first.code], 'and the person still in it is not disturbed');
-  assert.deepEqual(site.games(2)[0].others, [], 'though they are playing alone now');
+  assert.equal(site.games(2)[0].others.includes('P1'), false, 'who is no longer company of theirs');
 });
 
-test('the list has a way back into whatever room opening the game afresh would give you', async (t) => {
-  // Since the menu starts a game rather than resuming one, this list is the only way back into a room.  Whatever
-  // `resume` with no code would give somebody — which is the game they were last doing something in — the list must
-  // name, in every state an evening passes through.
+test('the list has a way back into every room being played, and holds no room nobody has started', async (t) => {
+  // Since the menu starts a game rather than resuming one, this list is the only way back into a room — once there
+  // is something in it to come back to.  Whatever `resume` with no code would give somebody, which is the game they
+  // were last doing something in, the list must name in every state an evening passes through after it begins.  A
+  // lobby is not one of those states: it is an invitation somebody sent, and the code is the way to it.
   const site = world(t);
   const listed = async (id) => {
     const back = await site.who(id).ask('resume', {});
@@ -498,14 +502,13 @@ test('the list has a way back into whatever room opening the game afresh would g
   };
 
   const made = await site.who(1).ask('create');
-  assert.equal(await listed(1), true, 'a lobby of their own');
+  assert.deepEqual(site.games(1), [], 'a lobby of their own is not a game they have on the go');
 
-  // A tournament being set up is still a lobby, and the people gathering in it have nothing else to come back to.
+  // A tournament being set up is a lobby like any other, and is no more listed than one.
   for (const id of [2, 3, 4]) await site.who(id).ask('join', { code: made.code });
   await site.who(1).ask('settings', { tournament: { on: true } });
-  assert.deepEqual(site.games(1).map((row) => row.kind), ['game'], 'a tournament nobody has started is an ordinary lobby');
-  assert.equal(await listed(1), true, 'the host of a tournament not yet started');
-  assert.equal(await listed(3), true, 'and somebody who only joined it');
+  assert.deepEqual(site.games(1), [], 'a tournament nobody has started is an ordinary lobby, and so is not listed');
+  assert.deepEqual(site.games(3), [], 'for whoever joined it either');
 
   await site.who(1).ask('start');
   await settled();

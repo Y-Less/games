@@ -47,7 +47,8 @@
     "gold": "{n}ギルダー：ショップで使えます",
     "yourGold": "あなたのギルダー",
     "yourAvatar": "あなたのアバター",
-    "noHelp": "このページのヘルプはありません。"
+    "noHelp": "このページのヘルプはありません。",
+    "myGames": "進行中のゲーム"
   },
   "games": {
     "welcome": "{name}さん、ようこそ",
@@ -56,9 +57,10 @@
     "playersRange": "{min}〜{max}人",
     "yours": "進行中のゲーム",
     "with": "対戦相手: {who}",
-    "waitingForPlayers": "参加者を待っています",
     "beingPlayed": "対戦中",
-    "carryOn": "続きから"
+    "carryOn": "続きから",
+    "noneYours": "進行中のゲームはありません。メニューから選んで始めてください。",
+    "listUnavailable": "ゲーム一覧を取得できませんでした。少し時間をおいてお試しください。"
   },
   "categories": {
     "party": "パーティーゲーム",

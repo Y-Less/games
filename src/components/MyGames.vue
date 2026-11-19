@@ -21,6 +21,9 @@ import { session } from '../session.js';
 const { t } = useI18n();
 const rows = ref([]);
 const loaded = ref(false);
+// Told apart from an empty list on purpose: "you have no games" and "nobody could say" are different things to read,
+// and the second one wrongly said as the first would send somebody away from a game that is sitting there waiting.
+const failed = ref(false);
 
 /** Is this row a tournament rather than a single game?  The two are told apart nowhere else in here. */
 const isTournament = (row) => row.kind === 'tournament';
@@ -34,7 +37,8 @@ const isTournament = (row) => row.kind === 'tournament';
  * Side effects: none.
  */
 function standing(row) {
-  if (!isTournament(row)) return { key: row.lobby ? 'games.waitingForPlayers' : 'games.beingPlayed', urgent: false };
+  // An ordinary game on this list is always one being played: the server sends no room that nobody has started.
+  if (!isTournament(row)) return { key: 'games.beingPlayed', urgent: false };
   if (row.yourTable) return { key: 'tournament.yourGame', urgent: true };
   if (row.waiting && !row.youReady) return { key: 'tournament.needsYou', urgent: true };
   if (row.waiting) return { key: 'tournament.waitingForOthers', urgent: false };
@@ -70,17 +74,20 @@ onMounted(async () => {
     const reply = await api('GET', '/api/my/games');
     rows.value = Array.isArray(reply?.games) ? reply.games : [];
   } catch {
-    rows.value = []; // the list is a convenience: a page that cannot fetch it still shows every game
+    rows.value = [];
+    failed.value = true;
   }
   loaded.value = true;
 });
 </script>
 
 <template>
-  <!-- Only what is worth coming back to is sent, so the list is simply what arrived. -->
-  <section v-if="loaded && rows.length" class="stack">
-    <h2>{{ t('games.yours') }}</h2>
-    <ul class="list">
+  <!-- Only what is worth coming back to is sent, so the list is simply what arrived.  Nothing is drawn until it has:
+       a page that flickered "nothing on the go" and then filled would be worse than one that waited a moment. -->
+  <section v-if="loaded" class="stack">
+    <p v-if="failed" class="panel muted">{{ t('games.listUnavailable') }}</p>
+    <p v-else-if="!rows.length" class="panel muted">{{ t('games.noneYours') }}</p>
+    <ul v-else class="list">
       <li v-for="row in rows" :key="`${row.game}:${row.code}`" class="panel row entry" :class="{ urgent: standing(row).urgent }">
         <span class="what">
           <strong>{{ gameName(row) }}</strong>

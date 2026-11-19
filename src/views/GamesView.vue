@@ -1,5 +1,6 @@
 <script setup>
-// The home page: the available games, grouped by category, each linking to its table.
+// The home page: the games there are to start, grouped by category, each linking to a new game of it.  The games
+// already on the go are "Your games" in the top menu (src/views/MyGamesView.vue), not here.
 // Props: none.  Emits: none.  Slots: none.
 // Depends on: session.js (session.games, from /api/config), catalogueText.js (the names a language may translate) and
 // vue-i18n.  Side effects: none.
@@ -8,7 +9,6 @@ import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 import { catalogue } from '../catalogueText.js';
 import { session } from '../session.js';
-import MyGames from '../components/MyGames.vue';
 
 const { t } = useI18n();
 // The folder a game is installed in, named in the empty-menu text.
@@ -37,10 +37,8 @@ const players = (g) => (g.minPlayers === g.maxPlayers ? t('games.players', { cou
       <template #folder><code>{{ MODULES_FOLDER }}</code></template>
     </i18n-t>
 
-    <!-- A game is left and come back to days later if its people like, so the way back into one belongs on the page
-         they land on, above the games there are to start. -->
-    <MyGames />
-
+    <!-- A game is left and come back to days later if its people like, and the way back into one is "Your games" in
+         the top menu.  This page is the other half of that: the games there are to start. -->
     <div v-for="group in groups" :key="group.key" class="stack">
       <h2>{{ catalogue.categoryLabel(group.key) }}</h2>
       <div class="grid">

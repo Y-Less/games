@@ -53,7 +53,11 @@ h3 {
   letter-spacing: 0.01em;
 }
 
-button {
+/* `a.button` is a link that does what a button does — the way back into a game, the way on through a tour — and must
+   look like one rather than like a line of underlined text.  It is spelt out beside every `button` rule below so that
+   the two cannot drift apart. */
+button,
+a.button {
   font: inherit;
   cursor: pointer;
   border: 1px solid var(--line);
@@ -63,11 +67,18 @@ button {
   padding: 0.55rem 1.1rem;
   transition: transform 0.12s, background 0.12s, border-color 0.12s;
 }
-button:hover:not(:disabled) {
+a.button {
+  display: inline-block;
+  text-decoration: none;
+  white-space: nowrap;
+}
+button:hover:not(:disabled),
+a.button:hover {
   background: color-mix(in srgb, var(--bg-raised), var(--line) 50%);
   border-color: #4d7080;
 }
-button:active:not(:disabled) {
+button:active:not(:disabled),
+a.button:active {
   transform: translateY(1px);
 }
 button:disabled {
@@ -75,21 +86,25 @@ button:disabled {
   cursor: not-allowed;
 }
 button:focus-visible,
+a.button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
-button.primary {
+button.primary,
+a.button.primary {
   background: var(--amber);
   border-color: var(--amber);
   color: var(--amber-ink);
   font-weight: 650;
 }
-button.primary:hover:not(:disabled) {
+button.primary:hover:not(:disabled),
+a.button.primary:hover {
   background: color-mix(in srgb, var(--amber), white 15%);
   border-color: color-mix(in srgb, var(--amber), white 15%);
 }
-button.quiet {
+button.quiet,
+a.button.quiet {
   background: transparent;
 }
 

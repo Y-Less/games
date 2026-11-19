@@ -100,7 +100,7 @@ test('config: anybody may read it, and it carries exactly the presets the server
 /** A module that answers with one game of the given vintage, as a room-based game's server half does. */
 const roomServer = (code, updatedAt) =>
   `export default function () {
-  return { gamesOf: () => [{ kind: 'game', code: '${code}', lobby: false, others: ['Bob'], updatedAt: ${updatedAt} }] };
+  return { gamesOf: () => [{ kind: 'game', code: '${code}', others: ['Bob'], updatedAt: ${updatedAt} }] };
 }`;
 
 test('my games: every module is asked, each row says which game it is, and the newest news comes first', async (t) => {
