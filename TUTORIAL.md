@@ -602,6 +602,11 @@ This one earns its place.  Writing this tutorial, it was the test that caught `l
 `npm test` runs the first two (node) and the third (vitest).  `npm run test:ui` drives a real browser and is not part
 of `npm test`; add a case there once the game works.
 
+Two things to know before a UI run worries you: a whole `test:ui` is load-sensitive, so a timeout in it may be the
+machine rather than your game — re-run that one file on its own before you believe it — and both `npm test` and
+`npm run test:ui` have been seen to exit 0 with failures in their output, so read the summary rather than the exit
+code.  `MODULES.md` ("The UI tests") has the commands and what the two look like.
+
 ---
 
 # 10. The order to do it in

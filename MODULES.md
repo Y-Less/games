@@ -590,6 +590,26 @@ The UI tests (`npm run test:ui`) are the ones to be most careful with: they driv
 assertion that reads the truth from the source — the count of a game's achievements from its `module.json`, say —
 over a number written into the test, which is a number that goes quietly wrong the next time somebody adds one.
 
+**A whole `test:ui` run is load-sensitive, so take a failure in one with a pinch of salt.**  Every file drives its own
+Chrome against a real server, and on a busy machine a step that is waiting on something the server does after a pause —
+a lobby filling with computer players, most often — can run out of patience before it arrives.  It fails as a timeout
+("timed out waiting for the text Players (3 of 7)", or for a selector that never appeared), which reads exactly like a
+broken game but is the clock rather than the code.  Before believing one, run the file it came from on its own:
+
+```sh
+node --test --test-concurrency=1 ui-tests/just-one.test.js            # one file, nothing else running
+node --test --test-concurrency=1 --test-name-pattern="Dixnt at" ui-tests/layout-stability.test.js   # or one test of it
+```
+
+A test that passes alone and fails only in the full run failed for the load, and a failure in a file your change never
+went near says the same thing louder.  Neither is a reason to change the test.  (Both of those happened at once in the
+run that added Dixnt's fourth play style: four failures in Just One, which the change never touched, and two in Dixnt's
+layout, all six passing on their own.)
+
+While you are reading a run: **read what it printed, not what it returned.**  Both `npm test` and `npm run test:ui`
+have been seen to exit 0 with failures in their output, so a green exit code is not on its own a green run — check the
+`# fail` line of the node tests and vitest's own summary.
+
 ## Card games
 
 Card games share a few pieces so they look and behave alike:
