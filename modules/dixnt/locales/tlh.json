@@ -20,24 +20,34 @@
     "noCategories": "buvmey tu'lu'be'",
     "deckSize": "nav ghomDaq {count} nav. | nav ghomDaq {count} navmey.",
     "notEnoughCards": "{players} QujwI'pu'vaD, HochvaD {handSize} navmey, yapbe' vam ({needed} poQlu').",
+    "noChooser": "wIvwI' pagh",
+    "noChooserText": "mu' ghItlh pagh: wIvlu'Ha'lu' 'ej nav lan Hoch. wuq Hoch 'e' poQbogh Quj mIwmey neH lo'lu'laH.",
     "handSize": "ghopvaD navmey",
     "rounds": "may'mey: mu' wIv Hoch QujwI' 'ar",
+    "roundsNoChooser": "may'mey: Qu' ghaj Hoch QujwI' 'ar",
     "gameLength": "{times} wIvpu'DI' Hoch, rIn Quj: {players} tu'lu'DI' {turns} 'oH.",
+    "gameLengthNoChooser": "{rounds} qaS Quj: {players} tu'lu'DI' {turns} 'oH.",
     "times": "{count}logh",
+    "roundCount": "{count} may' | {count} may'mey",
     "turns": "{count} Qu' | {count} Qu'mey",
     "playerCount": "{count} QujwI' | {count} QujwI'pu'",
     "needMore": "{count} latlh QujwI' poQlu' | {count} latlh QujwI'pu' poQlu'",
     "chooseMoreCategories": "buvmey law' tIwIv",
     "waitingToStart": "Quj taghmeH che'wI' loSlu'. {handSize} navmey ghaj Hoch ghop, 'ej {times} mu' wIv Hoch.",
+    "waitingToStartNoChooser": "Quj taghmeH che'wI' loSlu'. {handSize} navmey ghaj Hoch ghop, 'ej {rounds} qaS Quj.",
     "howItWorks": "chay' Qap",
     "rule": {
       "word": "Hoch Qu'Daq mu' pagh mu'tlhegh qel wa' QujwI' 'ej ghItlh.",
+      "wordRandom": "Hoch Qu'Daq Hoch QujwI'pu'vaD mu' pagh mu'tlhegh wIvlu'Ha'lu'.",
       "everyoneSees": "'oH legh Hoch latlh 'ej mu'vaD QaQqu'bogh nav lan.",
+      "everyoneSeesAll": "'oH legh Hoch 'ej mu'vaD QaQqu'bogh nav lan.",
       "oneInTheDark": "'oH legh Hoch latlh, 'ach {hidden} neH legh wa' QujwI' wIvlu'Ha'bogh.",
+      "oneInTheDarkAll": "'oH legh Hoch, 'ach {hidden} neH legh wa' QujwI' wIvlu'Ha'bogh.",
       "bluff": "mu'vaD QaQqu'bogh nav lan Hoch. nepnIS HurghDaq ghaHbogh QujwI'.",
       "reveal": "'anglu' navmey mu' je. yIja'chuq 'ej wIvmeylIj tItob.",
       "favourite": "ghIq parHa'qu'bogh nav wIv wIvwI', 'ej {points} Suq QujwI'vetlh.",
       "chooserDecides": "ghIq wuq: HurghDaq ghaHpu' 'Iv 'e' wuq wIvwI'.",
+      "everyoneVotesBest": "ghIq wuq: parHa'qu'bogh nav wuq Hoch, 'ej Hoch wuqvaD wa' mI' Suq 'oH lanbogh QujwI'.",
       "everyoneVotes": "ghIq wuq: HurghDaq ghaHpu' 'Iv 'e' wuq Hoch."
     }
   },
@@ -47,16 +57,25 @@
       "short": "wuq Hoch",
       "text": "HurghDaq ghaHpu' 'Iv 'e' wuq Hoch. ghaH lutu'chugh ghom, {perVote} Suq ghaH wuqpu'bogh Hoch QujwI'. tojlu'chugh ghom, ghaH tu'be'bogh Hoch QujwI'vaD {perVote} Suq tojwI'."
     },
+    "best": {
+      "title": "parHa'qu'bogh nav wuq Hoch (tojwI' pagh)",
+      "short": "parHa'qu'bogh wuq Hoch",
+      "text": "mu' legh Hoch 'ej nepnIS pagh. parHa'qu'bogh nav wuq Hoch, 'ej Hoch wuqvaD {perBest} Suq 'oH lanbogh QujwI'."
+    },
     "chooser": {
       "title": "wuq wIvwI' neH",
       "short": "wuq wIvwI' neH",
-      "text": "HurghDaq ghaHpu' 'Iv 'e' loy mu' wIvwI' neH. lughchugh, {correct} Suq wIvwI'. tojlu'chugh, {fooled} Suq tojwI'."
+      "text": "HurghDaq ghaHpu' 'Iv 'e' loy mu' wIvwI' neH. lughchugh, {correct} Suq wIvwI'. tojlu'chugh, {fooled} Suq tojwI'.",
+      "needsChooser": "mu' wIvbogh ghaH wuqwI''e', vaj wIvwI' poQ vam."
     },
     "favourite": {
       "title": "parHa'qu'bogh nav (tojwI' pagh)",
       "short": "parHa'qu'bogh nav",
-      "text": "mu' legh Hoch 'ej nepnIS pagh. parHa'qu'bogh nav wIv wIvwI', 'ej {points} Suq 'oH lanbogh QujwI'."
-    }
+      "text": "mu' legh Hoch 'ej nepnIS pagh. parHa'qu'bogh nav wIv wIvwI', 'ej {points} Suq 'oH lanbogh QujwI'.",
+      "needsChooser": "mu' wIvbogh ghaH parHa'qu'bogh nav wIvwI''e', vaj wIvwI' poQ vam."
+    },
+    "needsChooser": "wuq wa' QujwI' neH Quj mIwvetlhDaq, 'ej wIvwI' ghaH QujwI'vetlh'e'.",
+    "noChooserShort": "wIvwI' pagh"
   },
   "turn": {
     "label": "Qu' {n}",
@@ -65,6 +84,7 @@
   "notes": {
     "chooser": "wIvwI'",
     "cardPicked": "nav wIvlu'pu'",
+    "mostVotes": "wuqmey law'qu'",
     "chooserCardPicked": "wIvwI', nav wIvlu'pu'",
     "imposterCaught": "tojwI', tu'lu'pu'",
     "imposterFooledAll": "tojwI', toj Hoch",
@@ -73,6 +93,8 @@
   },
   "reveal": {
     "favourite": "{winner} nav wIv {chooser}.",
+    "best": "{name} nav parHa'qu' ghom.",
+    "bestTie": "nav pov tu'lu'be'.",
     "imposter": "tojwI' ghaHpu' {name}'e'.",
     "chooserSpotted": "ghaH tu'pu' wIvwI'.",
     "chooserFooled": "tojlu'pu' wIvwI'.",
@@ -105,15 +127,18 @@
     "lockIn": "yIngaQmoH",
     "lastTurn": "Qu' Qav 'oHpu': mI'mey Qav tIlegh",
     "nextTurn": "Qu' veb: mu' wIv {name}",
+    "nextTurnPlain": "Qu' veb",
     "backToLobby": "loSmeH pa'Daq yIchegh",
     "skipTurn": "Qu' yIlon",
     "confirmSkip": "Qu'vam yIlon (mI' pagh) 'ej mu' wIvwI' vebDaq yItaH'a'?",
+    "confirmSkipNoChooser": "Qu'vam yIlon (mI' pagh) 'ej mu' vebDaq yItaH'a'?",
     "card": "nav {id}",
     "playThis": "navvam yIlan",
     "playInstead": "navvam'e' yIlan",
     "lookCloser": "{name} nav yIleghchu'",
     "imposter": "tojwI'",
     "favourite": "parHa'qu'bogh",
+    "mostVotes": "wuqmey law'qu'",
     "vote": "yIwuq",
     "pickThis": "vam yIwIv",
     "yourPick": "DawIvbogh",
@@ -154,8 +179,15 @@
     "clickToPlay": "DaleghchumeH 'ej DalanmeH ghoplIjDaq nav yIwIv.",
     "playCard": "Qu'lIj: mu'vaD QaQqu'bogh nav yIlan.",
     "chooserPicks": "parHa'qu'bogh wIv wIvwI'.",
+    "tableVotesBest": "parHa'qu'bogh nav wuq Hoch.",
     "oneInTheDark": "mu'vam leghlaHbe' wa' QujwI'.",
     "pickFavourite": "Qu'lIj: parHa'qu'bogh nav yIwIv.",
+    "pickBest": "Qu'lIj: parHa'qu'bogh nav yIwuq.",
+    "bestIn": "wuqlIj tu'lu'. DachoHlaH.",
+    "explainBest": "qatlh mu'vaD QaQ navlIj yIQIj. navlIj wuqbogh Hoch QujwI'vaD {perBest} DaSuq.",
+    "bestPicked": "wuqmey law'qu' ghaj {name} nav.",
+    "bestTie": "wuqmey law'qu' ghajbogh nav tu'lu'be'.",
+    "scoresVotes": "{count} wuqvaD {points} Suq {name}. | {count} wuqmeyvaD {points} Suq {name}.",
     "decide": "Qu'lIj: HurghDaq ghaHpu' 'Iv?",
     "picked": "bIwIvpu'.",
     "decided": "bIwuqpu'.",
@@ -186,18 +218,22 @@
   "log": {
     "skipped": "lonlu'pu' Qu'.",
     "choosing": "Qu' {n}: mu' wIvtaH {name}.",
+    "turnRandom": "Qu' {n}: Hoch QujwI'pu'vaD mu' wIvlu'Ha'pu'.",
     "chose": "mu' wIvpu' {name}.",
     "played": "nav lanpu' {name}.",
     "voted": "wuqpu' {name}.",
     "decided": "wIvpu' {name}.",
     "allOnTable": "raSDaq Hoch nav.",
     "favourite": "{winner} nav wIv {chooser}.",
+    "best": "wuqmey law'qu' ghaj {name} nav.",
+    "bestTie": "wuqmey law'qu' ghajbogh nav tu'lu'be'.",
     "imposterCaught": "tojwI' ghaHpu' {name}'e'. tu'lu'pu'.",
     "imposterFooled": "tojwI' ghaHpu' {name}'e'. raS toj."
   },
   "errors": {
     "handSizeRange": "{min}vo' {max} navmey ghajnIS ghop.",
     "unknownJudging": "wuq mIw Sovbe'lu'.",
+    "noChooserNeedsVotes": "wuq wa' QujwI' neH Quj mIwvetlhDaq, 'ej wIvwI' ghaH QujwI'vetlh'e'. wuq Hoch 'e' poQbogh Quj mIw yIwIv, pagh wIvwI' yIchegh.",
     "unknownCategory": "buv Sovbe'lu'.",
     "needCategory": "wa' buv pagh law' yIwIv.",
     "notEnoughCards": "wIvlu'pu'bogh buvmeyDaq QujwI'pu' law'vaD navmey yapbe'. buvmey law' tIwIv.",
