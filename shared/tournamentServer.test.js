@@ -472,6 +472,21 @@ test('the list of your games gives a tournament one line, and the table it drew 
   assert.equal(site.games(1)[0].code, made.code);
 });
 
+test('leaving one game of several takes that one off your list and leaves the rest where they were', async (t) => {
+  const site = world(t);
+  const first = await site.who(1).ask('create');
+  const second = await site.who(1).ask('create');
+  await site.who(2).ask('join', { code: first.code });
+  assert.deepEqual([...site.games(1).map((row) => row.code)].sort(), [first.code, second.code].sort(), 'both are hers');
+  assert.deepEqual(site.games(1).find((row) => row.code === first.code).others, ['P2'], 'and one of them has company');
+
+  await site.who(1).ask('resume', { code: first.code });
+  assert.deepEqual(await site.who(1).ask('leave'), { ok: true });
+  assert.deepEqual(site.games(1).map((row) => row.code), [second.code], 'the game she left is no longer offered back');
+  assert.deepEqual(site.games(2).map((row) => row.code), [first.code], 'and the person still in it is not disturbed');
+  assert.deepEqual(site.games(2)[0].others, [], 'though they are playing alone now');
+});
+
 test('the list has a way back into whatever room opening the game afresh would give you', async (t) => {
   // Since the menu starts a game rather than resuming one, this list is the only way back into a room.  Whatever
   // `resume` with no code would give somebody — which is the game they were last doing something in — the list must
