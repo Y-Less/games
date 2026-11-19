@@ -36,7 +36,7 @@ const API_ROUTES = [
   'GET /api/me',
   'GET /api/config',
   'GET /api/games/:id/rules',
-  'GET /api/my/tournaments',
+  'GET /api/my/games',
   'PATCH /api/me',
   'POST /api/me/password',
   'GET /api/players',

@@ -228,10 +228,10 @@ const refused = (outcome) => ({ ok: false, error: /** @type {string} */ (outcome
  *   every module is heard without any of their server.js files knowing anything about it.
  * @param {() => number} [options.rng]  random numbers for rules that need them (default Math.random, created once here)
  * @param {() => number} [options.now]  the clock in milliseconds (default Date.now, created once here)
- * @returns {{ dispose: () => void, rooms: Map<string, object>, openFor: Function, changed: Function, tournamentsOf: Function }}
+ * @returns {{ dispose: () => void, rooms: Map<string, object>, openFor: Function, changed: Function, gamesOf: Function }}
  *   dispose() stops timers and saves; `rooms` is exposed for tests; `openFor` opens a started room for people who did
  *   not ask for it themselves (see below); `changed` saves and sends a room that something outside the protocol has
- *   altered; `tournamentsOf` is the tournaments one person is in, for the site's list of them
+ *   altered; `gamesOf` is the games one person has on the go here, for the site's list of them
  */
 export function createRoomServer(ctx, options) {
   const { game, pickSettings, nextAction, registerEvents, createArgs = () => ({}), viewOptions = () => ({}), playerExtras = () => ({}), afterChange, members = (room) => room.seats, layout = seatLayout, startRule, migrate, onFinished = ctx.onGameFinished, tournament = true, rng = Math.random, now = Date.now } = options;
@@ -523,21 +523,57 @@ export function createRoomServer(ctx, options) {
   });
 
   /**
-   * The tournaments this person is in, for the site's list of them (server/modules.js gathers every game's).  It is
-   * read from the store's index of who is in which room, so it costs nothing to ask for and answers for somebody who
-   * is not connected at all — which is the point, since a tournament between rounds is something you come back to.
+   * One room as a line in the site's list of the games a person has on the go, or null when it is not one of them.
    *
-   * @param {number} userId  whose tournaments
-   * @returns {object[]} one row each (see `rowFor` in shared/tournamentRoom.js), oldest news last
+   * Two kinds of room make a row, and they are told apart here rather than by the site:
+   *   - a tournament, which says where the evening has got to and whether it is waiting on the reader;
+   *   - an ordinary game, which says who else is at it, since what tells two games of the same thing apart is the
+   *     people playing them.
+   * A table of a tournament is neither: the tournament's own row is the way into it (`yourTable`), and a row of its
+   * own would be the same game offered twice.
+   *
+   * @param {object} room  the room to describe
+   * @param {number} userId  whose list it is
+   * @returns {object | null}
    * Side effects: none.
    */
-  const tournamentsOf = (userId) =>
+  function rowOf(room, userId) {
+    const held = tournaments.rowFor(room, userId);
+    if (held) return { ...held, kind: 'tournament' };
+    // A tournament with no row (finished, or one this person has withdrawn from) is not an ordinary game either:
+    // falling through would list its lobby as something to play.
+    if (tournaments.settingOf(room) || tournaments.parentOf(room)) return null;
+    if (!game.isLive(room)) return null;
+    // Whoever left a game that was already over is still on its standings, marked `left`, and is no longer one of its
+    // people: neither a row for them nor a name for anybody else (see `people` in shared/members.js).
+    const here = (members(room) ?? []).filter((member) => member && !member.left);
+    if (!here.some((member) => game.isHuman(member) && member.id === userId)) return null;
+    return {
+      kind: 'game',
+      code: room.code,
+      lobby: room.phase === 'lobby', // both families of game wait in a phase of that name, and start by leaving it
+      others: here.filter((member) => member.id !== userId).map((member) => String(member.name ?? '')),
+      updatedAt: room.updatedAt ?? 0,
+    };
+  }
+
+  /**
+   * The games this person has on the go, for the site's list of them (server/modules.js gathers every game's).  It is
+   * read from the store's index of who is in which room, so it costs nothing to ask for and answers for somebody who
+   * is not connected at all — which is the point, since a game is now something you come back to rather than
+   * something you are in until it ends.
+   *
+   * @param {number} userId  whose games
+   * @returns {object[]} one row each (see `rowOf` above), oldest news last
+   * Side effects: none.
+   */
+  const gamesOf = (userId) =>
     life
       .roomsOf(userId)
-      .flatMap((room) => tournaments.rowFor(room, userId) ?? [])
+      .flatMap((room) => rowOf(room, userId) ?? [])
       .sort((one, other) => other.updatedAt - one.updatedAt);
 
   // `changed` is here for something outside the protocol that has altered a room and must have it saved and sent: the
   // tour, whose rooms move on when a game in another module ends rather than when anybody sends anything.
-  return { rooms: life.rooms, dispose: life.dispose, openFor, changed: life.changed, tournamentsOf };
+  return { rooms: life.rooms, dispose: life.dispose, openFor, changed: life.changed, gamesOf };
 }

@@ -14,10 +14,10 @@ vi.mock('../api.js', async (importOriginal) => ({ ...(await importOriginal()), a
 
 /** One row as the site sends it, with whatever this test is about changed. */
 const row = (extra = {}) => ({
+  kind: 'tournament',
   game: 'hearts',
   name: 'Hearts',
   code: 'boss-aware-you',
-  over: false,
   round: 2,
   rounds: 3,
   people: 4,
@@ -32,7 +32,7 @@ const row = (extra = {}) => ({
 
 /** Mounts the list with these rows already answered for. */
 async function listOf(rows) {
-  api.mockResolvedValue({ tournaments: rows });
+  api.mockResolvedValue({ games: rows });
   const w = mount(MyTournaments, { global: { stubs: { RouterLink: { template: '<a :href="to"><slot /></a>', props: ['to'] } } } });
   await flushPromises();
   return w;
@@ -71,9 +71,10 @@ describe('the list of your tournaments', () => {
     expect(w.find('a').attributes('href')).toBe('/play/hearts?this-game-here');
   });
 
-  it('leaves out a tournament that has been played to the end', async () => {
-    const w = await listOf([row({ over: true })]);
-    expect(w.text()).toBe('');
+  it('draws the tournaments among the games the site lists, and leaves the rest to the rest of the page', async () => {
+    const w = await listOf([{ kind: 'game', game: 'hearts', name: 'Hearts', code: 'a-game-here', lobby: false, others: ['Bob'], updatedAt: 20 }, row()]);
+    expect(w.findAll('.entry')).toHaveLength(1);
+    expect(w.find('a').attributes('href')).toBe('/play/hearts?boss-aware-you');
   });
 
   it('shows the rest of the page when the list cannot be fetched', async () => {

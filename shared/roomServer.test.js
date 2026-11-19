@@ -328,3 +328,41 @@ test('a watcher of finished games that throws is logged, and the game is still r
   assert.equal(recorded, 1, 'the statistics were taken, once, despite the watcher');
   assert.ok(logs.some((line) => line.includes('the tour fell over')), `logged: ${logs.join(' | ')}`);
 });
+
+// The list of the games somebody has on the go (`gamesOf`), which the site gathers across every module and puts on
+// the home page.  Rooms are saved and loaded rather than played here, so that each rule about what makes a row can be
+// said in one line.  What a tournament makes of it is in shared/tournamentServer.test.js, where there is one to ask.
+const listingGame = { isLive: (room) => room.phase !== 'finished', isHuman: (member) => member?.kind === 'human' };
+/** One saved room of a list game, as recent as the sweep needs it to be. */
+const savedRoom = (code, phase, players, ago) => ({ code, phase, players, updatedAt: Date.now() - ago });
+/** A server over these saved rooms, listing with the rules above. */
+const listing = (t, rooms) => {
+  const { server, cleanup } = serverWith(() => null, { game: listingGame, members: (room) => room.players }, JSON.stringify(rooms));
+  t.after(cleanup);
+  return server;
+};
+
+test('the games you have on the go: every unfinished room you are in, the newest first, saying who else is at it', (t) => {
+  const server = listing(t, [
+    savedRoom('one-two-three', 'lobby', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 2, name: 'Bob' }], 3000),
+    savedRoom('four-five-six', 'playing', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'bot', id: 'bot:1', name: 'Hazel' }], 1000),
+    savedRoom('over-and-done', 'finished', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 3, name: 'Cal' }], 500),
+  ]);
+
+  const mine = server.gamesOf(1);
+  assert.deepEqual(mine.map((row) => row.code), ['four-five-six', 'one-two-three'], 'the newest news first, and a game that is over is not news');
+  assert.deepEqual(mine.map((row) => row.kind), ['game', 'game']);
+  assert.deepEqual(mine.map((row) => row.lobby), [false, true], 'a game still waiting for people says so');
+  assert.deepEqual(mine[0].others, ['Hazel'], 'the computer players are company too');
+  assert.deepEqual(mine[1].others, ['Bob']);
+  assert.deepEqual(server.gamesOf(2).map((row) => row.code), ['one-two-three'], 'each person is told their own');
+  assert.deepEqual(server.gamesOf(9), [], 'somebody who is in nothing is in nothing');
+});
+
+test('somebody who has left a game is neither given it back nor counted among the people still at it', (t) => {
+  // A list game keeps whoever left on its standings, marked `left`, so the room still names them: they are not one
+  // of its people, and a row for them would offer a game they walked out of.
+  const server = listing(t, [savedRoom('one-two-three', 'playing', [{ kind: 'human', id: 1, name: 'Ann' }, { kind: 'human', id: 2, name: 'Bob', left: true }], 1000)]);
+  assert.deepEqual(server.gamesOf(2), []);
+  assert.deepEqual(server.gamesOf(1)[0].others, [], 'and Ann is not told she is playing Bob');
+});

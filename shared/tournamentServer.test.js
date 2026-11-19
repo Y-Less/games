@@ -115,6 +115,8 @@ function world(t, people = [1, 2, 3, 4]) {
     sockets,
     who: (id) => sockets.get(id),
     rooms: () => server.rooms,
+    /** The games this person has on the go here, as the site's list of them asks for. */
+    games: (id) => server.gamesOf(id),
     /** Stops the site and starts it again over the same folder, as a restart does; everybody connects afresh. */
     restart: () => {
       server.dispose();
@@ -448,6 +450,35 @@ test('a tournament whose first round was never opened opens it when the site com
   site.restart();
   await settled();
   assert.equal(tables(site, made.code).length, 2);
+});
+
+test('the list of your games gives a tournament one line, and the table it drew you for none of its own', async (t) => {
+  // The site's list is how somebody comes back days later, so what it holds is what there is to come back to.  A
+  // table is reached through the tournament that opened it (`yourTable`), and a line of its own would be the same
+  // game offered twice over.
+  const site = world(t);
+  const code = await tournament(site);
+
+  const [row, ...rest] = site.games(1);
+  assert.deepEqual(rest, [], 'one evening, one line');
+  assert.equal(row.kind, 'tournament');
+  assert.equal(row.code, code, 'the tournament, not the table');
+  assert.equal(row.round, 1);
+  assert.ok(tables(site, code).some((table) => table.code === row.yourTable), 'with the table it drew you for');
+
+  // An ordinary game of the same thing sits beside it: neither crowds the other out.
+  const made = await site.who(1).ask('create');
+  assert.deepEqual(site.games(1).map((line) => line.kind), ['game', 'tournament'], 'the newer news first');
+  assert.equal(site.games(1)[0].code, made.code);
+});
+
+test('a tournament played to its end is no longer something to come back to', async (t) => {
+  const site = world(t);
+  const code = await tournament(site);
+  for (let round = 0; round < 3; round++) await playRound(site, code);
+
+  assert.equal(site.rooms().get(code).phase, 'finished');
+  assert.deepEqual(site.games(1), [], 'neither the tournament nor the tables it finished with');
 });
 
 test('a tournament of one person is refused, and the lobby is left as it was', async (t) => {

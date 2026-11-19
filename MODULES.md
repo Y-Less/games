@@ -244,8 +244,8 @@ What a game author needs to know about it:
   from — so a game that reports its results properly needs nothing else to take part.
 - **An evening may be played over several.**  Every round after the first opens only once everybody still in has sent
   `tournamentReady`, so a tournament can be left standing between rounds and come back to; the site lists the ones a
-  person is in at `GET /api/my/tournaments`, gathered from every module through the `tournamentsOf` on the handle
-  `createRoomServer` returns.  Nothing of this reaches your game: it happens in the room your game is never handed.
+  person is in with the rest of their games (see below).  Nothing of this reaches your game: it happens in the room
+  your game is never handed.
 
 ### Several games at once
 
@@ -254,6 +254,12 @@ something else in another module; each room is reached by its own invite code, `
 last played in, and walking into a room neither leaves nor disturbs any other.  A game that assumed one room per
 account — a lobby that said "you are already in a game", say — would be wrong.  Nothing in the rules vocabulary
 changes: every rule is asked about one room, as it always was.
+
+**The site lists them** at `GET /api/my/games`, gathered from every module through the `gamesOf` on the handle
+`createRoomServer` returns, which is where somebody picks up a game again days later.  A game gives one line per
+unfinished room the person is in: its code, whether it is still in its lobby, and who else is at it (a tournament
+gives a line of its own instead, and its tables give none, since the tournament's row is the way into them).  No
+module writes any of this; it falls out of the rooms your rules have already made.
 
 ### Where the rooms are kept
 

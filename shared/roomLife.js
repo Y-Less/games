@@ -343,7 +343,7 @@ export function createRoomLife({ ctx, game, members, layout, viewOptions, afterC
    * Nobody is held to one game at a time.  Somebody may have a game of this going in one tab and another in the next,
    * be in a tournament of it besides, and be in the middle of something else in another module entirely; walking into
    * one of them neither leaves nor disturbs the rest.  Each room is named by its own invite code, and what ties the
-   * loose ends together is the list of them the site keeps (see `tournamentsOf` in shared/roomServer.js).
+   * loose ends together is the list of them the site keeps (see `gamesOf` in shared/roomServer.js).
    *
    * @param {object} socket  the connected socket (needs `data.user`)
    * @param {unknown} rawCode  the code as typed or pasted by the client; normalised here

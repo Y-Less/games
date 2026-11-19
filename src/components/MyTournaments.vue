@@ -2,7 +2,7 @@
 // File: the list of the tournaments you are in, across every game, with the way back into each.
 // Depends on: vue, vue-router, vue-i18n, ../api.js, ../catalogueText.js, ../session.js.
 // Props: none.  Emits: none.  Slots: none.
-// Side effects: one GET of /api/my/tournaments when it is put on screen.
+// Side effects: one GET of /api/my/games when it is put on screen.
 //
 // A tournament is played over as long as its people like — a round one evening and the next another — so the room it
 // is run from is not something anybody is expected to leave open in a tab.  This is how you find your way back to it:
@@ -22,8 +22,9 @@ const { t } = useI18n();
 const rows = ref([]);
 const loaded = ref(false);
 
-/** The tournaments worth offering: one that is over has nothing left to come back for. */
-const mine = computed(() => rows.value.filter((row) => !row.over));
+// The site's list holds every game a person has on the go; this screen draws the tournaments among them, until it
+// grows into the list of all of them.  (One that is over is not sent at all: it has nothing to come back for.)
+const mine = computed(() => rows.value.filter((row) => row.kind === 'tournament'));
 
 /**
  * What this tournament wants from the reader, which is the only reason the list is worth having on the page:
@@ -47,8 +48,8 @@ const gameName = (row) => {
 
 onMounted(async () => {
   try {
-    const reply = await api('GET', '/api/my/tournaments');
-    rows.value = Array.isArray(reply?.tournaments) ? reply.tournaments : [];
+    const reply = await api('GET', '/api/my/games');
+    rows.value = Array.isArray(reply?.games) ? reply.games : [];
   } catch {
     rows.value = []; // the list is a convenience: a page that cannot fetch it still shows every game
   }

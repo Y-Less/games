@@ -488,25 +488,25 @@ export function createTournamentRules({ game, members, layout, limits, rng, open
   const againRefused = (room) => (settingOf(room) || room?.inTournament ? fail('tournamentNoAgain') : null);
 
   /**
-   * This tournament in one line, for the list of the ones a person is in — which is drawn by the site, across every
-   * game, rather than by any game's own screens (see `tournamentsOf` in shared/roomServer.js).
+   * This tournament in one line, for the list of the games a person has on the go — which is drawn by the site, across
+   * every game, rather than by any game's own screens (see `gamesOf` in shared/roomServer.js).
    *
    * It is deliberately small: enough to say where the evening has got to and whether it is waiting on the reader,
-   * and nothing of the standings or the tables, which are a click away.
+   * and nothing of the standings or the tables, which are a click away.  A tournament played to its end is not a row
+   * at all: the list is of what is still to come back to.
    *
-   * @param {object} room  a room, which is a row only if it is a tournament this person is still in
+   * @param {object} room  a room, which is a row only if it is an unfinished tournament this person is still in
    * @param {number} userId  whose list it is
    * @returns {object | null}
    * Side effects: none.
    */
   function rowFor(room, userId) {
     const played = settingOf(room);
-    if (!played?.rounds || !stillIn(played).includes(userId)) return null;
+    if (!played?.rounds || room.phase === 'finished' || !stillIn(played).includes(userId)) return null;
     const waiting = isWaiting(room);
     const here = stillIn(played);
     return {
       code: room.code,
-      over: room.phase === 'finished',
       round: Math.min((played.round ?? 0) + 1, played.rounds.length),
       rounds: played.rounds.length,
       people: here.length,
