@@ -65,7 +65,9 @@
     "imposterCaught": "imposter, caught",
     "imposterFooledAll": "imposter, fooled all",
     "chooserSpotted": "chooser, spotted it",
-    "chooserFooled": "chooser, fooled"
+    "chooserFooled": "chooser, fooled",
+    "judgeSpotted": "judge, spotted it",
+    "judgeFooled": "judge, fooled"
   },
   "reveal": {
     "favourite": "{chooser} picked {winner}’s card.",
@@ -194,6 +196,7 @@
   "errors": {
     "handSizeRange": "Hand size must be between {min} and {max}.",
     "unknownJudging": "Unknown judging method.",
+    "noChooserNeedsVotes": "Without a word-chooser there is nobody to pick a favourite card. Choose a style that ends in a vote.",
     "unknownCategory": "Unknown category.",
     "needCategory": "Pick at least one category.",
     "notEnoughCards": "There are not enough cards in the chosen categories for that many players. Choose more categories.",

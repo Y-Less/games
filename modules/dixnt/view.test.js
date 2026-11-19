@@ -9,15 +9,18 @@ import { cards, recordedViews } from './views.js';
 
 const describeJudging = { everyone: 'everyone judges', chooser: 'the chooser judges', favourite: 'favourites are picked' };
 
-for (const [judging, seed] of [
-  ['everyone', 91],
-  ['chooser', 92],
-  ['favourite', 93],
+for (const [judging, seed, noChooser] of [
+  ['everyone', 91, false],
+  ['chooser', 92, false],
+  ['favourite', 93, false],
+  ['everyone', 94, true],
+  ['chooser', 95, true],
 ]) {
-  test(`the views of a game where ${describeJudging[judging]} are the same every time for a seed, and say who is an account`, () => {
-    const first = recordedViews(judging, seed);
+  const how = `${describeJudging[judging]}${noChooser ? ' and nobody chooses the word' : ''}`;
+  test(`the views of a game where ${how} are the same every time for a seed, and say who is an account`, () => {
+    const first = recordedViews(judging, seed, { noChooser });
     assert.equal(first.finished, true);
-    assert.deepEqual(recordedViews(judging, seed).views, first.views, 'a seed replays the same game and the same views');
+    assert.deepEqual(recordedViews(judging, seed, { noChooser }).views, first.views, 'a seed replays the same game and the same views');
     assert.ok(first.views.length > 50, 'the game was long enough to look at');
     for (const text of first.views) {
       const view = JSON.parse(text);
@@ -30,10 +33,10 @@ for (const [judging, seed] of [
 test('a view lists its parts in a fixed order, and an outsider is shown nothing of their own', () => {
   const game = rulesWith({ getCardIds: () => cards(400), hints: [] });
   const room = game.createRoom({ code: 'one-two-three', hostId: 1, hostName: 'Host', now: 0 });
-  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'you', 'phase', 'turn', 'rounds', 'completedTurns', 'totalTurns', 'completedRounds', 'handSize', 'chooserId', 'hostId', 'minPlayers', 'maxPlayers', 'size', 'pointsPerVote', 'pointsChooserCorrect', 'pointsFooledChooser', 'pointsFavourite', 'judging', 'categories', 'availableCards', 'drawCount', 'discardCount', 'word', 'wordHidden', 'isChooser', 'hand', 'myPick', 'myVote', 'isImposter', 'players', 'scoreboard', 'table', 'voteTargets', 'results']);
+  assert.deepEqual(Object.keys(game.viewFor(room, 1)), ['code', 'you', 'phase', 'turn', 'rounds', 'completedTurns', 'totalTurns', 'completedRounds', 'handSize', 'chooserId', 'hostId', 'minPlayers', 'maxPlayers', 'size', 'pointsPerVote', 'pointsChooserCorrect', 'pointsFooledChooser', 'pointsFavourite', 'judging', 'noChooser', 'categories', 'availableCards', 'drawCount', 'discardCount', 'word', 'wordHidden', 'isChooser', 'playsCard', 'hand', 'myPick', 'myVote', 'isImposter', 'players', 'scoreboard', 'table', 'voteTargets', 'results']);
   const outsider = game.viewFor(room, 'nobody');
   assert.deepEqual(Object.keys(outsider), Object.keys(game.viewFor(room, 1)), 'the same parts, so the client never meets a missing one');
-  assert.deepEqual([outsider.isChooser, outsider.hand, outsider.myPick, outsider.myVote, outsider.isImposter], [false, [], null, null, false]);
+  assert.deepEqual([outsider.isChooser, outsider.playsCard, outsider.hand, outsider.myPick, outsider.myVote, outsider.isImposter], [false, false, [], null, null, false]);
   assert.equal(outsider.players.some((p) => p.id === outsider.you), false, 'and they are nobody at the table');
   assert.deepEqual(outsider.voteTargets, []);
 });

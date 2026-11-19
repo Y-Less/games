@@ -1,8 +1,9 @@
 // Property-style tests for the Dixnt rules: seeded random legal play (with people joining, leaving, and rounds being
-// skipped) in every judging mode, checking the invariants of the game after every single action.
+// skipped) in every judging mode, with and without a word-chooser, checking the invariants of the game after every
+// single action.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { JUDGING_MODES, MIN_PLAYERS } from './game.js';
+import { JUDGING_MODES, MIN_PLAYERS, NO_CHOOSER_JUDGING } from './game.js';
 import { rulesWith } from './harness.js';
 import { seeded } from '../../shared/testkit.js';
 
@@ -19,6 +20,14 @@ function newRoom(game, count) {
 
 /** The player a table's key names.  A table keyed by player id has text keys; a person's id is a number. */
 const byKey = (room, key) => room.players.find((p) => String(p.id) === String(key));
+
+/** Every way a game can be set up: each judging style, and the two that also go without a word-chooser. */
+const VARIANTS = [
+  ...JUDGING_MODES.map((judging) => ({ judging, noChooser: false })),
+  ...NO_CHOOSER_JUDGING.map((judging) => ({ judging, noChooser: true })),
+];
+/** How a variant is named in a test's title. */
+const describeVariant = ({ judging, noChooser }) => `"${judging}" judging${noChooser ? ' with nobody choosing the word' : ''}`;
 
 /** Everything that must hold whatever has happened so far. */
 function check(game, room, memory, where) {
@@ -41,14 +50,21 @@ function check(game, room, memory, where) {
   for (const r of room.history) for (const slot of Object.keys(r.deltas)) assert.ok(room.players.some((p) => p.slot === slot), `${note}: history mentions a slot nobody holds`);
   assert.equal(room.history.length, room.completedTurns, `${note}: one history row per completed round`);
   if (room.phase !== 'lobby') assert.ok(room.players.length >= MIN_PLAYERS, `${note}: a game needs ${MIN_PLAYERS} players`);
+  // Whose turn it is: the one choosing the word, or, with no chooser, simply whose go it is for the length of the game.
+  const plays = new Set(game.cardPlayers(room).map((p) => p.id));
   if (['word', 'picking', 'voting', 'results'].includes(room.phase)) {
-    assert.ok(game.playerOf(room, room.chooserId), `${note}: the chooser is a current player`);
-    for (const id of Object.keys(room.picks)) assert.ok(byKey(room, id) && String(id) !== String(room.chooserId), `${note}: a pick by a non-player`);
+    assert.ok(game.playerOf(room, room.chooserId), `${note}: the turn belongs to a current player`);
+    for (const id of Object.keys(room.picks)) assert.ok(byKey(room, id) && plays.has(byKey(room, id).id), `${note}: a pick by somebody not playing a card`);
     for (const [voter, target] of Object.entries(room.votes)) assert.ok(byKey(room, voter) && byKey(room, target), `${note}: a vote involving a non-player`);
+    assert.equal(room.noChooser && room.phase === 'word', false, `${note}: a game with no chooser never waits for a word`);
   }
   if (['picking', 'voting', 'results'].includes(room.phase)) {
     if (room.judging === 'favourite') assert.equal(room.imposterId, null);
-    else assert.ok(game.playerOf(room, room.imposterId) && room.imposterId !== room.chooserId, `${note}: the imposter is a current card player`);
+    else {
+      assert.ok(game.playerOf(room, room.imposterId) && plays.has(room.imposterId), `${note}: the imposter is a current card player`);
+      // The one who decides is never the one in the dark, or they could hand themselves the fooled points.
+      if (room.judging === 'chooser') assert.notEqual(room.imposterId, room.chooserId, `${note}: the judge is the imposter`);
+    }
   }
   if (room.phase === 'voting') assert.equal(room.tableOrder.length, game.cardPlayers(room).length, `${note}: every card is on the table`);
   if (room.phase === 'results') {
@@ -139,16 +155,17 @@ function randomAction(game, room, rng, names) {
   return false;
 }
 
-for (const judging of JUDGING_MODES) {
-  test(`random legal play in "${judging}" judging keeps every invariant, with people joining, leaving and rounds skipped`, () => {
+for (const [variant, index] of VARIANTS.map((v, i) => [v, i])) {
+  const { judging, noChooser } = variant;
+  test(`random legal play in ${describeVariant(variant)} keeps every invariant, with people joining, leaving and rounds skipped`, () => {
     let finishedGames = 0;
     for (let seed = 1; seed <= 25; seed++) {
-      const rng = seeded(seed * 7919 + JUDGING_MODES.indexOf(judging));
+      const rng = seeded(seed * 7919 + index);
       const game = newRules();
       const room = newRoom(game, 4);
       const memory = { cards: CARDS, completed: 0, reset: true };
       const names = { n: 0 };
-      assert.equal(game.setSettings(room, room.hostId, { judging, rounds: 1 + Math.floor(rng() * 3), handSize: 3 + Math.floor(rng() * 8) }).ok, true);
+      assert.equal(game.setSettings(room, room.hostId, { judging, noChooser, rounds: 1 + Math.floor(rng() * 3), handSize: 3 + Math.floor(rng() * 8) }).ok, true);
       assert.equal(game.start(room, room.hostId, rng).ok, true);
       check(game, room, memory, `seed ${seed} start`);
       let sawFinished = false;
@@ -170,7 +187,7 @@ for (const judging of JUDGING_MODES) {
 }
 
 test('without leaves or skips every game terminates after exactly players x rounds rounds, whatever the votes', () => {
-  for (const judging of JUDGING_MODES) {
+  for (const { judging, noChooser } of VARIANTS) {
     for (let seed = 1; seed <= 20; seed++) {
       const rng = seeded(seed);
       const game = newRules();
@@ -178,15 +195,15 @@ test('without leaves or skips every game terminates after exactly players x roun
       const room = newRoom(game, count);
       const host = room.hostId;
       const each = 1 + Math.floor(rng() * 3);
-      assert.equal(game.setSettings(room, host, { judging, rounds: each, handSize: 3 + Math.floor(rng() * 4) }).ok, true);
+      assert.equal(game.setSettings(room, host, { judging, noChooser, rounds: each, handSize: 3 + Math.floor(rng() * 4) }).ok, true);
       assert.equal(game.start(room, host, rng).ok, true);
       const memory = { cards: CARDS, completed: 0, reset: true };
       const chosen = new Set();
       let guard = 0;
       while (room.phase !== 'finished') {
         assert.ok(guard++ < 2000, 'terminates');
+        chosen.add(room.chooserId); // whose turn it is, whether or not they are the one choosing the word
         if (room.phase === 'word') {
-          chosen.add(room.chooserId);
           game.submitWord(room, room.chooserId, 'w', rng);
         } else if (room.phase === 'picking') {
           for (const p of game.cardPlayers(room)) game.playCard(room, p.id, p.hand[Math.floor(rng() * p.hand.length)], rng);

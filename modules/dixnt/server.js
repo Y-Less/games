@@ -59,7 +59,7 @@ function loadHints() {
  * @returns {object} a copy with only the allowed keys
  * Side effects: none.
  */
-const pickSettings = (payload) => pickKeys(payload, ['handSize', 'rounds', 'judging', 'categories', 'size']);
+const pickSettings = (payload) => pickKeys(payload, ['handSize', 'rounds', 'judging', 'noChooser', 'categories', 'size']);
 
 /**
  * Starts the Dixnt server half.

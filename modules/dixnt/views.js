@@ -16,20 +16,23 @@ function hostActs(game, room, hostId, rng) {
   const view = game.viewFor(room, hostId);
   if (room.phase === 'results') game.nextTurn(room, hostId, rng);
   else if (room.phase === 'word' && view.isChooser) game.submitWord(room, hostId, 'a word', rng);
-  else if (room.phase === 'picking' && !view.isChooser && view.myPick === null) game.playCard(room, hostId, view.hand[0], rng);
+  else if (room.phase === 'picking' && view.playsCard && view.myPick === null) game.playCard(room, hostId, view.hand[0], rng);
   else if (room.phase === 'voting' && view.voteTargets.length && view.myVote === null) game.vote(room, hostId, view.voteTargets[0]);
   else return false;
   return true;
 }
 
-/** Plays a whole game (the host acts for themselves, computers for the rest) and returns every view of every seat. */
-export function recordedViews(judging, seed) {
+/**
+ * Plays a whole game (the host acts for themselves, computers for the rest) and returns every view of every seat.
+ * `noChooser` plays it the way nobody chooses the word, which only the two voting styles allow.
+ */
+export function recordedViews(judging, seed, { noChooser = false } = {}) {
   const rng = seededRng(seed);
   const game = rulesWith({ getCardIds: () => cards(400), hints: cards(30).map((n) => `hint ${n}`) });
   const hostId = 1;
   const room = game.createRoom({ code: 'seeded-game-here', hostId, hostName: 'Host', now: 0 });
   game.fillWithBots(room, hostId, 4);
-  game.setSettings(room, hostId, { judging, rounds: 2, handSize: 4 });
+  game.setSettings(room, hostId, { judging, noChooser, rounds: 2, handSize: 4 });
   const views = [];
   const look = () => {
     for (const p of room.players) {
