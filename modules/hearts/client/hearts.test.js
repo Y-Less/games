@@ -337,12 +337,25 @@ describe('advanceLog', () => {
     expect(words(log.at(-1))).toBe('Di played the 9 of diamonds.');
   });
 
-  it('notes new hands, passing and the end of the game, and keeps a limited list', () => {
+  it('notes new hands, passing and the end of the game', () => {
     expect(advanceLog([], at({ phase: 'passing' }), at({ phase: 'playing' })).map(words)).toEqual(['The cards have been passed.']);
     expect(advanceLog([], at({ handNumber: 1 }), at({ handNumber: 2 })).map(words)).toEqual(['Hand 2 is dealt.']);
     expect(advanceLog([], at(), at({ phase: 'finished', winners: [1, 2] })).map(words)).toEqual(['The game is over: Bo and Cy win.']);
-    const long = Array.from({ length: 200 }, (_, i) => ({ text: String(i) }));
-    expect(advanceLog(long, at(), at({ handNumber: 2 })).length).toBe(120);
+  });
+
+  it('keeps the hand being played and the one before it, and lets the rest go', () => {
+    // Not a memory of the whole evening: two hands is what the list is for, and what bounds its length.
+    const plays = (log, hand, card) => advanceLog(log, at({ handNumber: hand }), at({ handNumber: hand, trick: [{ seat: 0, card }] }));
+    const deals = (log, hand) => advanceLog(log, at({ handNumber: hand - 1 }), at({ handNumber: hand }));
+
+    let log = plays([], 1, '2C');
+    log = deals(log, 2);
+    log = plays(log, 2, '5D');
+    expect(log.map(words)).toEqual(['Ann played the 2 of clubs.', 'Hand 2 is dealt.', 'Ann played the 5 of diamonds.'], 'both hands while the second is being played');
+
+    log = deals(log, 3);
+    log = plays(log, 3, 'KS');
+    expect(log.map(words)).toEqual(['Hand 2 is dealt.', 'Ann played the 5 of diamonds.', 'Hand 3 is dealt.', 'Ann played the king of spades.'], 'and the first hand has gone');
   });
 });
 
