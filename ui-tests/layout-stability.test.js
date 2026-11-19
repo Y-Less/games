@@ -624,6 +624,35 @@ test(`Tints and Hints at ${at}: every zone keeps one size and position through a
   })(t);
 });
 
+// Zurubang is a table of twenty card-shaped places — two hands and ten positions — that empty and fill as a duel is
+// laid out and fought, which is exactly the shape of thing that moves everything under it when it is got wrong.  One
+// person plays a whole duel against a computer player while the boxes are sampled.
+test(`Zurubang at ${at}: the hands, the battlefield and both bottom boxes keep one size and position through a whole duel, and the page does not scroll`, { timeout: 150000 }, async (t) => {
+  const user = await world.newUser('zurubang');
+  await user.page.setViewport(viewport);
+  await world.guard('zurubang layout', async () => {
+    await user.signUp('zblay', { displayName: 'Zara' });
+    await startGame(user, '/play/zurubang', 'Start a new game');
+    await startRecording(user, ['.score-bar', '.game-frame', '.arena', '.their-hand', '.battlefield', '.hand', '.box.log', '.box.status', '.box.log .game-log']);
+    const step = async () => {
+      if (await user.modalTitle()) {
+        await user.page.keyboard.press('Escape');
+        return true;
+      }
+      const text = await user.text();
+      // A card is placed, or chosen for a sudden death, by clicking it; everything else on this table is a button.
+      if (text.includes('Place a card on position')) return user.clickFoundOnTop(() => document.querySelector('.hand .zb-card'));
+      if (text.includes('Sudden death')) return user.clickFoundOnTop(() => document.querySelector('.battlefield .row-of-five:last-of-type .zb-card.clickable'));
+      const buttons = ['Challenge to a duel', 'Accept the duel', 'I place first', 'Turn the next pair over', 'Carry on'];
+      return user.clickFound((wanted) => [...document.querySelectorAll('button:not([disabled])')].find((b) => wanted.includes(b.innerText.trim())), buttons);
+    };
+    await drive({ act: step, finished: async () => (await user.text()).includes('Duels 1'), timeout: 120000, what: 'Zurubang' });
+    // A hand emptying onto the battlefield and filling again moves nothing: every row keeps a card's height either way.
+    assertStable('zurubang', await stopRecording(user), { ...STICKY, tolerateMissing: 100000 });
+    await assertGridEdges(user, 'zurubang', viewport, { left: ['.arena'], right: ['.arena'] });
+  })(t);
+});
+
 }
 
 test('no uncaught errors in any page', () => {

@@ -43,6 +43,14 @@ const mySeat = computed(() => s.value.seats[me.value] ?? null);
 const theirSeat = computed(() => s.value.seats[them.value] ?? null);
 /** The five positions, counted from the stacks, which is how everything in the rules is numbered. */
 const POSITIONS = [0, 1, 2, 3, 4];
+/**
+ * A hand drawn as five places rather than as however many cards are in it.  A duel empties a hand a card at a time,
+ * and a row that closed up behind each one would slide the whole table sideways five times a duel; an empty place
+ * where a card was is both calmer and truer to what is in front of you.
+ */
+const slotsOf = (cards) => POSITIONS.map((i) => cards[i] ?? null);
+const myHand = computed(() => slotsOf(s.value.hand).map((card) => (card ? { id: card, back: null } : null)));
+const theirHand = computed(() => slotsOf(s.value.theirHand));
 
 // A hand that changes under a picked card leaves nothing picked, and so does a change of phase.
 watch(
@@ -212,8 +220,7 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
         </PlayerPopup>
 
         <section class="their-hand" :style="{ height: `${cardHeight(area)}px` }" :aria-label="t('table.theirHandTitle', { name: theirSeat?.name ?? '' })">
-          <CardImage v-for="(card, i) in state.theirHand" :key="`t-${i}`" :card="card" :width="cardWidth(area)" />
-          <p v-if="!state.theirHand.length" class="muted">{{ t('table.theirHandOnTable', { name: theirSeat?.name ?? '' }) }}</p>
+          <CardImage v-for="(card, i) in theirHand" :key="`t-${i}`" :card="card" :width="cardWidth(area)" />
         </section>
 
         <section class="battlefield" :aria-label="t('table.battlefield')">
@@ -240,15 +247,14 @@ const swapAll = () => props.send('swapAll', { stacks: stack.value === null ? und
 
         <section class="hand" :style="{ height: `${cardHeight(area)}px` }" :aria-label="t('table.yourHand')">
           <CardImage
-            v-for="card in state.hand"
-            :key="card"
-            :card="{ id: card, back: null }"
+            v-for="(card, i) in myHand"
+            :key="`m-${i}`"
+            :card="card"
             :width="cardWidth(area)"
-            clickable
-            :selected="picked === card"
-            @pick="useCard(card)"
+            :clickable="Boolean(card)"
+            :selected="Boolean(card) && picked === card.id"
+            @pick="card && useCard(card.id)"
           />
-          <p v-if="!state.hand.length" class="muted">{{ t('table.handOnTable') }}</p>
         </section>
       </div>
     </template>

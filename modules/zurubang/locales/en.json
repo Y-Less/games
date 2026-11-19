@@ -248,7 +248,6 @@
     "theirSide": "{name}'s side of the battlefield",
     "yourSide": "Your side of the battlefield",
     "yourHand": "Your hand",
-    "handOnTable": "Every card you have is on the battlefield.",
     "theirHandTitle": "{name} holds",
     "emptyPlace": "An empty place",
     "stack": "{n} ({count})",
@@ -269,7 +268,6 @@
       "red": "A red back, which promises fire",
       "black": "A black back, which promises spirit",
       "blue": "A blue back, which promises water"
-    },
-    "theirHandOnTable": "Every card {name} has is on the battlefield."
+    }
   }
 }

@@ -15,9 +15,27 @@ cards.js      the 105 cards as data: back, face, power, abilities, and which tal
 duel.js       one fight, decided: the pure function the whole game hangs off, and the talents
 game.js       the rules as functions over a plain room object
 server.js     the socket half (shared/roomServer.js) and the server's own moves
-ai/           the computer players, one file each
-client/       the screens
+ai/           the computer players, one file each, named after the rulebook's own playing styles
+client/       the screens: the root, the lobby, the table, and one card
+arena.js      whole games of computers against computers, for the AI and invariant tests
+views.js      a seeded game recorded view by view, for the view, leak and drawing tests
 locales/en.json  every word, including all 105 card names and 25 talent texts under `cards.`
+cards/        the art, served at /assets/zurubang/cards/{faces,backs}/<name>.jpg
+```
+
+The tests, in the order they are worth reading:
+
+```
+duel.test.js        one fight at a time: the order of the checks, and every talent
+game.test.js        a turn, a challenge, a duel laid out and fought, and what each does to the score
+rules-gaps.test.js  one test per ruling below, named after it
+invariants.test.js  every card is in exactly one place after every move of 72 whole games
+view.test.js        the same views for a seed, and never a face its reader has not been shown
+ai.test.js          every AI plays legally, finishes, and is recognisably itself
+robustness.test.js  garbage at all 24 socket events in all 9 phases
+e2e.test.js         real sockets: a whole game, a chair changing hands, and a tournament of three
+client/render-all.test.js  every view of two whole games, drawn by the real table
+../../ui-tests/zurubang.test.js  two browsers: five faces against five backs, and ten cards going down
 ```
 
 `cards.js` and the `cards` block of `locales/en.json` are generated from `../../../zurubang/cards.json`,
@@ -89,4 +107,18 @@ A card that is replaced face down mid-duel is a back again, even if its position
 ## Tournaments
 
 The game is for two, which makes it the natural shape for a tournament: `fillTo` is 2, the lobby has
-exactly two seats, and a tournament deals its tables two at a time with no help from this module.
+exactly two seats, and a tournament deals its tables two at a time with no help from this module.  The
+one thing worth knowing is the order: a tournament has to be switched on **before** the third person
+arrives, because an ordinary lobby of this game has two chairs and will turn them away.
+`e2e.test.js` plays a round of one out to its standings.
+
+## The table
+
+The frame gives its main slot the width of the whole row in `width` and the width of its own part in
+`left`, so everything here is sized off `left`, and the arena spans all twelve columns.  Sizing a card
+off `width` draws it too wide and lets the hand off the side of the screen, which is what the first run
+of the layout test found.
+
+Both hands are drawn as five places rather than as however many cards are in them.  A duel empties a
+hand a card at a time, and a row that closed up behind each one would slide the whole table sideways
+five times a duel; `ui-tests/layout-stability.test.js` is what says so.
