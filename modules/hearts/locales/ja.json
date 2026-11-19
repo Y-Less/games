@@ -81,7 +81,6 @@
   "log": {
     "dealt": "第{n}ハンドを配りました。",
     "passed": "カードをパスしました。",
-    "played": "{name}が{card}を出しました。",
     "takesTrick": "{name}がトリックを取りました。",
     "claims": "{name}が残り{count}トリックをまとめて取りました。",
     "handOver": "第{n}ハンドが終わりました。"

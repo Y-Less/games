@@ -1,16 +1,15 @@
 // The "Recent moves" list for Hearts.  The server sends the table as it is, not a history, so the client keeps one: every
-// state that arrives is compared with the one before it, and what changed (cards played, a trick taken, a new hand) is
+// state that arrives is compared with the one before it, and what changed (a trick taken, a new hand) is
 // added as a line.  Each line is a message (`{ key, params }`, see shared/messages.js) under the game's `log.*` keys, put
 // into words by the table when it is drawn, so the list reads in the player's language whenever they switch.  The list
 // starts when the page does (a reload shows moves from then on).  It lives outside the table component so that every
 // state is looked at, even when several arrive before the page redraws.
 //
-// It holds two hands: the one being played and the one before it.  A list of every card played all evening would be a
-// perfect memory for whoever thought to scroll it and a disadvantage for whoever did not, which is not the game; two
-// hands is what somebody would reasonably remember, and it is what the list is for — catching up on what happened
-// while you were looking elsewhere.  That window is also what keeps the list from growing without end, so there is no
-// separate limit on its length.
-import { cardMsg, msg } from '../../../shared/messages.js';
+// It is a summary of the hand rather than a record of it: the deal, the pass, who took each trick, and how it ended.
+// It holds two hands, the one being played and the one before it, which is about a dozen lines each and bounds the
+// list without needing a separate limit on its length.  What it is for is catching up on what happened while you were
+// looking elsewhere, which wants something readable at a glance.
+import { msg } from '../../../shared/messages.js';
 
 /** How many hands the list keeps: the current one and the one before it. */
 const HANDS_KEPT = 2;
@@ -23,14 +22,6 @@ const HANDS_KEPT = 2;
  * Side effects: none.
  */
 const nameOf = (state, seat) => state.seats[seat]?.name ?? msg('common.someone');
-/**
- * Whether two plays in a trick are the same play (used to tell a trick that grew from a new one).
- * @param {{ seat: number, card: string }} a  one play
- * @param {{ seat: number, card: string }} b  another play
- * @returns {boolean}
- * Side effects: none.
- */
-const same = (a, b) => a.seat === b.seat && a.card === b.card;
 
 /**
  * The log after `next` arrives, given the log so far and the previous state (null when there was none).  It is empty when
@@ -54,12 +45,11 @@ export function advanceLog(log, prev, next) {
   if (next.handNumber !== prev.handNumber) add('log.dealt', { n: next.handNumber });
   if (prev.phase === 'passing' && next.phase === 'playing') add('log.passed');
 
+  // A line for the trick, and none for the cards in it.  Every card played was a line of its own once, which is
+  // fifty-two of them a hand: a list nobody could read at a glance, and the thing it was supposed to be good for —
+  // seeing what happened while you were looking elsewhere — was buried in it.  The trick in the middle of the table
+  // shows the cards while they are being played, and who took each one is what is worth keeping afterwards.
   if (next.phase === 'playing' || prev.phase === 'playing') {
-    const before = prev.trick ?? [];
-    const after = next.trick ?? [];
-    const continues = after.length >= before.length && before.every((p, i) => same(p, after[i]));
-    const fresh = continues ? after.slice(before.length) : after;
-    for (const play of fresh) add('log.played', { name: nameOf(next, play.seat), card: cardMsg(play.card) });
     if (next.trickWinner !== null && next.trickWinner !== undefined && next.trickWinner !== prev.trickWinner) add('log.takesTrick', { name: nameOf(next, next.trickWinner) });
   }
 
